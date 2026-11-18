@@ -1,0 +1,41 @@
+{
+  "name": "@cahier/db",
+  "version": "0.1.0",
+  "description": "The database side of Cahier: the Drizzle schema, the migrations, the seed generator and the repository adapters over PostgreSQL or PGlite.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx src/migrate.ts",
+    "seed": "tsx src/seed-cli.ts"
+  },
+  "dependencies": {
+    "@cahier/domain": "workspace:*",
+    "@electric-sql/pglite": "^0.5.16",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}

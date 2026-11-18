@@ -23,7 +23,8 @@
     "test": "vitest run",
     "generate": "drizzle-kit generate",
     "migrate": "tsx src/migrate.ts",
-    "seed": "tsx src/seed-cli.ts"
+    "seed": "tsx src/seed-cli.ts",
+    "corpus": "node scripts/corpus.mjs"
   },
   "dependencies": {
     "@cahier/domain": "workspace:*",

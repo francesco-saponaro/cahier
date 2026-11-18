@@ -8,7 +8,7 @@ export default tseslint.config(
   {
     // Build scripts run under Node.
     files: ["**/scripts/*.mjs"],
-    languageOptions: { globals: { console: "readonly", process: "readonly" } },
+    languageOptions: { globals: { console: "readonly", process: "readonly", URL: "readonly" } },
   },
   {
     rules: {

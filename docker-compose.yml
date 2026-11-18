@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cahier
+      POSTGRES_PASSWORD: cahier
+      POSTGRES_DB: cahier
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cahier"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    environment:
+      DATABASE_URL: postgres://cahier:cahier@postgres:5432/cahier
+      PORT: "3001"
+      HOST: 0.0.0.0
+      WEB_ORIGIN: http://localhost:8080
+      SESSION_HOURS: "72"
+      SEED: "1"
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - server
+
+volumes:
+  pgdata:

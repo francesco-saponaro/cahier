@@ -1,0 +1,29 @@
+{
+  "name": "@cahier/domain",
+  "version": "0.1.0",
+  "description": "The rules of Cahier: tokens, chunking, retrieval packing, composition, access, metering and the state machines, with no framework and no database in them.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "fast-check": "^4.10.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0"
+  }
+}

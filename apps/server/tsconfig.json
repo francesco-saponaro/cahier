@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "outDir": "dist",
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@cahier/domain": ["../../packages/domain/src/index.ts"],
+      "@cahier/db": ["../../packages/db/src/index.ts"],
+      "@cahier/db/*": ["../../packages/db/src/*"]
+    }
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}

@@ -96,9 +96,8 @@ export function authUseCasesCreator(deps: Deps) {
       return ok(await unitOfWork.run((on) => signedIn(on, user, first)));
     },
 
-    async signOut(token: string): Promise<Result<void>> {
-      const session = await ports.sessions.findActive(tokenHashOf(token), clock.now());
-      if (session) await ports.sessions.delete(session.id);
+    async signOut(sessionId: string): Promise<Result<void>> {
+      await ports.sessions.delete(sessionId);
       return ok(undefined);
     },
 

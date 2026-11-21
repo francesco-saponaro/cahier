@@ -19,7 +19,7 @@ export interface Settings {
 }
 
 export interface SettingsUpdate {
-  tools?: Partial<WorkspaceTools> | undefined;
+  tools?: { [K in keyof WorkspaceTools]?: boolean | undefined } | undefined;
   retentionDays?: number | undefined;
 }
 
@@ -56,7 +56,12 @@ export function settingsUseCasesCreator(deps: Deps) {
       if (!Number.isInteger(retentionDays) || retentionDays < RETENTION_RANGE.min || retentionDays > RETENTION_RANGE.max) {
         return invalid(`retention must be between ${RETENTION_RANGE.min} and ${RETENTION_RANGE.max} days`);
       }
-      const updated: Workspace = { ...workspace, tools: { ...workspace.tools, ...input.tools }, retentionDays };
+      const tools: WorkspaceTools = {
+        groundedAnswers: input.tools?.groundedAnswers ?? workspace.tools.groundedAnswers,
+        scheduledPrompts: input.tools?.scheduledPrompts ?? workspace.tools.scheduledPrompts,
+        uploads: input.tools?.uploads ?? workspace.tools.uploads,
+      };
+      const updated: Workspace = { ...workspace, tools, retentionDays };
       await unitOfWork.run(async (on) => {
         await on.workspaces.update(updated);
         await audit(on, {

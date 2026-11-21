@@ -89,7 +89,7 @@ export function librariesUseCasesCreator(deps: Deps) {
       return ok(library);
     },
 
-    async update(actor: Actor, libraryId: string, input: Partial<LibraryInput>): Promise<Result<Library>> {
+    async update(actor: Actor, libraryId: string, input: { name?: string | undefined; description?: string | undefined }): Promise<Result<Library>> {
       const found = await manageable(actor, libraryId);
       if (!found.ok) return found;
       const library = found.value;

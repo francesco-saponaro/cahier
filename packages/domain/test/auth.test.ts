@@ -38,6 +38,7 @@ describe("authenticate, me, switchWorkspace and signOut", () => {
   test("turns a token into the actor of the session's workspace, or nothing after expiry, sign-out or suspension", async () => {
     const { useCases, clock, store } = world();
     const { token } = unwrap(await useCases.auth.signIn({ email: "lea@example.com", password: PASSWORD }));
+    const { session } = (await useCases.auth.authenticate(token))!;
     expect(await useCases.auth.authenticate(token)).toMatchObject({ actor: LEA });
     expect(await useCases.auth.authenticate("not-a-token")).toBeNull();
     store.memberships.find((m) => m.id === "mem_lea")!.status = "suspended";
@@ -46,7 +47,7 @@ describe("authenticate, me, switchWorkspace and signOut", () => {
     clock.advance(73 * 60 * 60 * 1000);
     expect(await useCases.auth.authenticate(token)).toBeNull();
     clock.advance(-73 * 60 * 60 * 1000);
-    await useCases.auth.signOut(token);
+    await useCases.auth.signOut(session.id);
     expect(await useCases.auth.authenticate(token)).toBeNull();
   });
 

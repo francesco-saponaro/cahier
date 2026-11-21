@@ -73,6 +73,7 @@ export interface MembershipRepository {
 
 export interface SessionRepository {
   insert(session: Session): Promise<void>;
+  findById(id: string): Promise<Session | null>;
   /** The session behind the token's hash when it has not expired at `now`. */
   findActive(tokenHash: string, now: Date): Promise<Session | null>;
   update(session: Session): Promise<void>;

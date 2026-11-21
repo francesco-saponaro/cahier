@@ -138,6 +138,7 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
       insert: async (s) => {
         store.sessions.push({ ...s });
       },
+      findById: async (id) => store.sessions.find((s) => s.id === id) ?? null,
       findActive: async (tokenHash, now) => store.sessions.find((s) => s.tokenHash === tokenHash && s.expiresAt.getTime() > now.getTime()) ?? null,
       update: async (s) => replaceById(store.sessions, s),
       delete: async (id) => {

@@ -255,7 +255,8 @@ export function portContract(name: string, create: (data: Fixture) => Promise<Po
 
       it("inserts, rewrites, deletes a session, and deletes every session of a user in a workspace", async () => {
         await p.sessions.insert({ id: "ses_x", tokenHash: "hash-x", userId: "usr_tom", workspaceId: "ws_oriel", createdAt: day(1), expiresAt: day(5) });
-        const s = (await p.sessions.findActive("hash-x", day(1)))!;
+        const s = (await p.sessions.findById("ses_x"))!;
+        expect(s.tokenHash).toBe("hash-x");
         await p.sessions.update({ ...s, workspaceId: "ws_brindille" });
         expect((await p.sessions.findActive("hash-x", day(1)))?.workspaceId).toBe("ws_brindille");
         await p.sessions.delete("ses_x");

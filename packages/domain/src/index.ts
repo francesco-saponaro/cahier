@@ -29,3 +29,4 @@ export { cryptoIdGeneratorCreator, systemClock } from "./ids.js";
 export { canAdmin, canManageAgent, canManageLibrary, canReadAgent, canReadLibrary, canUseAgent } from "./access.js";
 export { dayOf, isMonth, monthOf, monthStart, nextMonth } from "./time.js";
 export * from "./use-cases/index.js";
+export { isTimeZone, nextOccurrence, type ScheduleShape } from "./schedule.js";

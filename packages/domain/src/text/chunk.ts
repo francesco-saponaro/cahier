@@ -8,7 +8,7 @@ import { countTokens } from "./tokens.js";
  * overlap) so a sentence cut at a boundary is still found whole. `document.slice(start, end)`
  * is always exactly `body`, which is what lets a citation point back to the page.
  */
-export interface Chunk {
+export interface TextChunk {
   ordinal: number;
   start: number;
   end: number;
@@ -75,9 +75,9 @@ function units(text: string, budget: number): Unit[] {
   return out;
 }
 
-export function chunkText(text: string, options: ChunkOptions = DEFAULT_CHUNK_OPTIONS): Chunk[] {
+export function chunkText(text: string, options: ChunkOptions = DEFAULT_CHUNK_OPTIONS): TextChunk[] {
   const { budget, overlap } = options;
-  const chunks: Chunk[] = [];
+  const chunks: TextChunk[] = [];
   let current: Unit[] = [];
   let currentTokens = 0;
 

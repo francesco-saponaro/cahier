@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type InferSelectModel } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -474,3 +474,25 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_log_workspace_time_idx").on(t.workspaceId, t.at), index("audit_log_entity_idx").on(t.entityKind, t.entityId)],
 );
+
+export type WorkspaceRow = InferSelectModel<typeof workspaces>;
+export type UserRow = InferSelectModel<typeof users>;
+export type MembershipRow = InferSelectModel<typeof memberships>;
+export type SessionRow = InferSelectModel<typeof sessions>;
+export type InvitationRow = InferSelectModel<typeof invitations>;
+export type ModelRow = InferSelectModel<typeof models>;
+export type ModelPriceRow = InferSelectModel<typeof modelPrices>;
+export type LibraryRow = InferSelectModel<typeof libraries>;
+export type DocumentRow = InferSelectModel<typeof documents>;
+export type ChunkRow = Omit<InferSelectModel<typeof chunks>, "tsv">;
+export type AgentRow = InferSelectModel<typeof agents>;
+export type AgentVersionRow = InferSelectModel<typeof agentVersions>;
+export type ShareRequestRow = InferSelectModel<typeof shareRequests>;
+export type ConversationRow = InferSelectModel<typeof conversations>;
+export type MessageRow = InferSelectModel<typeof messages>;
+export type CitationRow = InferSelectModel<typeof citations>;
+export type UsageEventRow = InferSelectModel<typeof usageEvents>;
+export type BudgetRow = InferSelectModel<typeof budgets>;
+export type ScheduledPromptRow = InferSelectModel<typeof scheduledPrompts>;
+export type ScheduledRunRow = InferSelectModel<typeof scheduledRuns>;
+export type AuditEntryRow = InferSelectModel<typeof auditLog>;

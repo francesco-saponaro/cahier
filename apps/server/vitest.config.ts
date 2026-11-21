@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: "@cahier/domain", replacement: src("../../packages/domain/src/index.ts") },
+      { find: "@cahier/api", replacement: src("../../packages/api/src/index.ts") },
       { find: /^@cahier\/db\/(.*)$/, replacement: `${src("../../packages/db/src/")}$1` },
       { find: "@cahier/db", replacement: src("../../packages/db/src/index.ts") },
     ],

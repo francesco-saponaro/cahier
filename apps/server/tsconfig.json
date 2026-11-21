@@ -4,12 +4,27 @@
     "rootDir": "../..",
     "outDir": "dist",
     "noEmit": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "paths": {
-      "@cahier/domain": ["../../packages/domain/src/index.ts"],
-      "@cahier/db": ["../../packages/db/src/index.ts"],
-      "@cahier/db/*": ["../../packages/db/src/*"]
+      "@cahier/domain": [
+        "../../packages/domain/src/index.ts"
+      ],
+      "@cahier/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@cahier/db/*": [
+        "../../packages/db/src/*"
+      ],
+      "@cahier/api": [
+        "../../packages/api/src/index.ts"
+      ]
     }
   },
-  "include": ["src", "test", "vitest.config.ts"]
+  "include": [
+    "src",
+    "test",
+    "vitest.config.ts"
+  ]
 }

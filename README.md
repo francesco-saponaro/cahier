@@ -4,7 +4,7 @@ A team assistant that answers from the team's own documents, and the admin conso
 
 The part I care most about is grounding: cutting documents into chunks that follow the text, retrieving with PostgreSQL full-text search under the rights of the person asking, packing a context under a token budget, composing an answer whose citations resolve to exact spans, streaming it, and metering it. The model itself is simulated (the answer is built from the retrieved passages) behind a port where a real client would go; everything around it is real.
 
-This is day one of a six-day build. The sections below fill in as the pieces land.
+This is day two of a six-day build. The sections below fill in as the pieces land.
 
 ## Live demo
 
@@ -35,10 +35,21 @@ The server needs a PostgreSQL to point at (`docker compose up postgres` gives on
 
 ## What is there so far
 
-- `packages/domain`: the approximate tokenizer, sentence units with spans, the chunker (a paragraph that fits the budget stays whole, a longer one is cut at sentence ends, the next chunk repeats the tail of the previous one), scrypt passwords, micro-dollar arithmetic and the price in force at an instant.
-- `packages/db`: twenty-two tables with their constraints in the database, the migration with the generated search vector, `connect` (node-postgres) and `connectPglite`, and the seed generator with a hand-written corpus: a fictional company's handbook, runbooks and price list, and a fictional bakery chain's shop manual.
-- `apps/server`: Fastify with the health check, security headers and CORS.
+- `packages/domain`: the approximate tokenizer, sentence units with spans, the chunker (a paragraph that fits the budget stays whole, a longer one is cut at sentence ends, the next chunk repeats the tail of the previous one), scrypt passwords, micro-dollar arithmetic and the price in force at an instant. The entities, the eleven state machines as transition tables, the access rules, the ports the use cases need and their in-memory adapters, and the use cases themselves: sign-in and sessions, invitations and members, libraries and documents, agents and their versions, share requests, conversations, scheduled prompts, settings, budgets, the usage report and the audit log.
+- `packages/db`: twenty-two tables with their constraints in the database, the migration with the generated search vector, `connect` (node-postgres) and `connectPglite`, the seed generator with a hand-written corpus (a fictional company's handbook, runbooks and price list, and a fictional bakery chain's shop manual), and the ports over Drizzle, which pass the same contract test as the in-memory ones.
+- `packages/api`: the tRPC router, one procedure per use case, with the zod input schemas the web app will share. `docs/api.md` lists every procedure with its auth rule, input, answer and errors.
+- `apps/server`: Fastify serving the router at `/trpc`, with the health check, security headers, CORS and a rate limit on sign-in.
 - `apps/web`: the Next.js static-export shell.
+
+### Signing in
+
+`auth.signIn` takes an email and a password and answers an opaque token; the server stores only its SHA-256, with the workspace the session is in and an expiry. Every call carries `Authorization: Bearer <token>`, and the person behind it is the session's user with the role their membership gives them in that workspace, for as long as the membership is active. Suspending someone ends their sessions at once. A user can belong to several workspaces and switch between them; the session is rewritten. Invitations are a token the admin passes on (there is no email delivery), accepted with a name and a password, or with the password of an account that already exists.
+
+### What the rules enforce
+
+A member sees their own libraries, agents and conversations and whatever is shared with the workspace. Sharing is a request the owner makes and an admin approves; the admin's inbox shows what an agent would expose, library by library, with which of those are private. An admin reads every library and agent in the workspace, but no conversation of anyone else. Agents are versioned: saving opens a draft, publishing retires the current version, rolling back republishes an old one under its own number, and a conversation records the version that answered it. The last active admin can be neither suspended nor demoted. Every state change goes through a transition table, and every change writes an audit row with the fields before and after.
+
+Lists page by cursor, never by offset: each page answers a `nextCursor` to pass back for the next one, and a row inserted ahead of the reader cannot shift a page.
 
 ## Tests
 
@@ -46,7 +57,7 @@ The server needs a PostgreSQL to point at (`docker compose up postgres` gives on
 pnpm test
 ```
 
-Unit tests on the text rules (with property-based tests for the tokenizer, the sentence splitter and the chunker), on money and passwords; schema tests that prove the database refuses what it should; seed tests that check the invariants the real use cases will have to keep (chunks that cover their document, citations that quote it at their span, usage that adds up at the price in force, rights that hold).
+Unit tests on the text rules (with property-based tests for the tokenizer, the sentence splitter and the chunker), on money, passwords and cursors; the use cases on the in-memory ports, with a small world where every expectation is written out in full; one contract test that both the in-memory and the Drizzle adapters pass, so a filter, a sort, a page and a usage sum mean the same in both; schema tests that prove the database refuses what it should; seed tests that check the invariants the real use cases will have to keep (chunks that cover their document, citations that quote it at their span, usage that adds up at the price in force, rights that hold); router tests on the middleware and the error mapping; and integration tests over HTTP on the seed, with a real server on a free port: the access matrix (anonymous, member, admin, suspended, the admin of another workspace), the workflows (build an agent, share it, use it; invite and join; run the workspace; schedule a prompt), the forbidden transitions, the last-admin rule, cursor paging through the seed, and the rate limit on sign-in.
 
 ## What is real and what is simulated
 
@@ -57,8 +68,10 @@ Real: the database and its constraints, the chunking, the retrieval, the citatio
 ```
 packages/domain    the rules, no framework and no database
 packages/db        schema, migrations, seed, adapters
+packages/api       the tRPC router and the input schemas
 apps/server        Fastify
 apps/web           Next.js, static export
+docs/api.md        every procedure
 docs/decisions     the decision records, one per choice that cost something
 ```
 

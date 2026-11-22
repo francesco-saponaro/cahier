@@ -57,7 +57,9 @@ Every list takes `limit` (1 to 50, 20 by default) and `cursor` (the `nextCursor`
 | `conversations.restore` | mutation | member | `{ id }` | The conversation, `active` again. |
 | `messages.list` | query | member | `{ conversationId, limit?, cursor? }` | A page of messages by ordinal, each with its `citations` by index. |
 
-`messages.send` (the streamed answer) lands with the grounding pipeline.
+| `messages.send` | subscription | member | `{ conversationId, text }` | A stream of events over SSE (`httpSubscriptionLink`; the token goes in `connectionParams.token`, since an EventSource cannot send a header). `started { userMessage, assistantMessageId }`, then `delta { text }` pieces, then `citations { citations }` and `done { message }`; or `refused { message, reason }` with `budget_exhausted`, `rate_limited`, `tool_off`, `no_sources` or `no_price`; or `failed { message, error }`. The checks that need no row written answer as errors before the stream starts: `NOT_FOUND` for someone else's conversation, `PRECONDITION_FAILED`/`conversation_archived`, `/agent_unusable`, `BAD_REQUEST` for an empty question or one over 4,000 characters. |
+
+What `send` does, in order: writes the user message and titles a new conversation from it; checks the tool is on, the model has prices in force, the member is under their rate limit (20 questions and 40,000 tokens a minute) and the month's budget leaves room for the estimate (question and instructions as input, the whole context budget as cached input, 256 tokens of answer); retrieves up to 24 chunks from the agent version's libraries intersected with the ones the member may read; packs them under `maxContextTokens − prompt − 256`; composes the answer; streams it; then writes the citations, the three usage rows at the prices in force at the message's instant, the message as `complete` with its token counts, and the conversation's counts. A month with no budget row has no cap.
 
 ### `libraries` and `documents`
 

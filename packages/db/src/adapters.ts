@@ -390,8 +390,23 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
         const citations = ids.length === 0 ? [] : await db.select().from(schema.citations).where(inArray(schema.citations.messageId, ids)).orderBy(asc(schema.citations.index));
         return { items: page.items.map((m) => ({ ...m, citations: citations.filter((c) => c.messageId === m.id) })), nextCursor: page.nextCursor };
       },
+      insert: async (m) => {
+        await db.insert(schema.messages).values(m);
+      },
+      update: async (m) => {
+        await db
+          .update(schema.messages)
+          .set({ body: m.body, status: m.status, refusedReason: m.refusedReason, modelId: m.modelId, agentVersionId: m.agentVersionId, promptTokens: m.promptTokens, contextTokens: m.contextTokens, completionTokens: m.completionTokens, completedAt: m.completedAt })
+          .where(eq(schema.messages.id, m.id));
+      },
+      insertCitations: async (citations) => {
+        if (citations.length > 0) await db.insert(schema.citations).values(citations.map((c) => ({ ...c })));
+      },
     },
     usage: {
+      insert: async (u) => {
+        await db.insert(schema.usageEvents).values(u);
+      },
       spentMicros: async (workspaceId, month) => {
         const [row] = await db.select({ costMicros: totals.costMicros }).from(schema.usageEvents).where(usageWhere(workspaceId, month));
         return row?.costMicros ?? 0;

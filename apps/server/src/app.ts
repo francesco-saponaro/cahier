@@ -15,6 +15,8 @@ export interface AppOptions {
   sessionHours: number;
   /** Sign-in attempts allowed per IP per minute. */
   authRateLimit?: number;
+  /** Milliseconds between the pieces of a streamed answer; the tests leave it at none. */
+  streamDelayMs?: number;
 }
 
 /**
@@ -29,7 +31,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   void app.register(cors, { origin: options.webOrigin ? [options.webOrigin] : false, credentials: false });
 
   const { ports, unitOfWork } = drizzlePortsCreator(options.db);
-  const useCases = useCasesCreator({ ports, unitOfWork, clock: systemClock, ids: cryptoIdGeneratorCreator(), sessionHours: options.sessionHours });
+  const useCases = useCasesCreator({ ports, unitOfWork, clock: systemClock, ids: cryptoIdGeneratorCreator(), sessionHours: options.sessionHours, streamDelayMs: options.streamDelayMs ?? 0 });
 
   app.get("/health", async () => {
     await options.db.execute(sql`select 1`);
@@ -47,7 +49,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       prefix: "/trpc",
       trpcOptions: {
         router: appRouter,
-        createContext: ({ req }) => createContext({ useCases, authorization: req.headers.authorization }),
+        createContext: ({ req, info }) => createContext({ useCases, authorization: req.headers.authorization, connectionParams: info.connectionParams }),
       } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
     });
   });

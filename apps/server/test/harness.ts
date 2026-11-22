@@ -1,4 +1,5 @@
-import { createTRPCClient, httpBatchLink, TRPCClientError } from "@trpc/client";
+import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink, TRPCClientError } from "@trpc/client";
+import { EventSource } from "eventsource";
 import superjson from "superjson";
 import type { AppRouter } from "@cahier/api";
 import { connectPglite, generateSeed, seedDatabase, DEMO_PASSWORD } from "@cahier/db";
@@ -7,6 +8,8 @@ import { buildApp } from "../src/app.js";
 /*
  * A real server on a free port over PGlite with the seed loaded, and a tRPC client per person:
  * the tests go through HTTP, the bearer header, the batch link and superjson, as the app will.
+ * Subscriptions go over SSE with the token in the connection params, since an EventSource
+ * cannot send a header; Node has no EventSource of its own, so the tests bring one.
  */
 
 export const PASSWORD = DEMO_PASSWORD;
@@ -27,7 +30,13 @@ export async function startServer(options: { authRateLimit?: number } = {}): Pro
   const url = typeof address === "object" && address ? `http://127.0.0.1:${address.port}` : "";
   const clientFor = (token?: string) =>
     createTRPCClient<AppRouter>({
-      links: [httpBatchLink({ url: `${url}/trpc`, transformer: superjson, headers: () => (token ? { authorization: `Bearer ${token}` } : {}) })],
+      links: [
+        splitLink({
+          condition: (op) => op.type === "subscription",
+          true: httpSubscriptionLink({ url: `${url}/trpc`, transformer: superjson, EventSource, connectionParams: () => (token ? { token } : {}) }),
+          false: httpBatchLink({ url: `${url}/trpc`, transformer: superjson, headers: () => (token ? { authorization: `Bearer ${token}` } : {}) }),
+        }),
+      ],
     });
   return {
     url,
@@ -63,4 +72,16 @@ export async function reasonOf(run: Promise<unknown>): Promise<string | null> {
     throw e;
   }
   return "no error";
+}
+
+/** Every event of a subscription until it completes, or the error it ended with. */
+export function collect<T>(subscribe: (handlers: { onData: (d: T) => void; onComplete: () => void; onError: (e: unknown) => void }) => { unsubscribe: () => void }): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const out: T[] = [];
+    subscribe({
+      onData: (d) => out.push(d),
+      onComplete: () => resolve(out),
+      onError: (e) => reject(e instanceof Error ? e : new Error(String(e))),
+    });
+  });
 }

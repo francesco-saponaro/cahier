@@ -27,11 +27,14 @@ import type {
   ShareRequest,
   ShareStatus,
   ShareSubjectKind,
+  UsageEvent,
   User,
   Workspace,
 } from "./entities.js";
 import type { PriceKind } from "./money.js";
 import type { RetrievedChunk } from "./grounding/pack.js";
+import type { Answerer } from "./grounding/compose.js";
+import type { RateLimiter } from "./grounding/rate.js";
 
 /*
  * The ports: what the use cases need from the outside world, as interfaces. `packages/db`
@@ -243,6 +246,9 @@ export type MessageWithCitations = Message & { citations: Citation[] };
 export interface MessageRepository {
   /** By ordinal, with each message's citations by index. */
   list(conversationId: string, query: PageQuery): Promise<Page<MessageWithCitations>>;
+  insert(message: Message): Promise<void>;
+  update(message: Message): Promise<void>;
+  insertCitations(citations: readonly Citation[]): Promise<void>;
 }
 
 export interface UsageTotals {
@@ -256,6 +262,7 @@ export interface UsageGroup extends UsageTotals {
 }
 
 export interface UsageRepository {
+  insert(event: UsageEvent): Promise<void>;
   /** The month's cost in micro-dollars, every row together. */
   spentMicros(workspaceId: string, month: string): Promise<number>;
   mine(workspaceId: string, userId: string, month: string): Promise<UsageTotals & { byKind: Record<PriceKind, UsageTotals> }>;
@@ -346,4 +353,10 @@ export interface Deps {
   clock: Clock;
   ids: IdGenerator;
   sessionHours: number;
+  /** The model, or its stand-in; the extractive answerer by default. */
+  answerer?: Answerer | undefined;
+  /** The member's rate limit; the default bucket over the clock when not given. */
+  rateLimiter?: RateLimiter | undefined;
+  /** Milliseconds between the pieces of a streamed answer; none by default. */
+  streamDelayMs?: number | undefined;
 }

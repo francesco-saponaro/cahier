@@ -18,10 +18,12 @@ export interface ContextInput {
   useCases: UseCases;
   /** The `Authorization` header, if any: `Bearer <token>`. */
   authorization?: string | undefined;
+  /** A subscription's connection params; an EventSource cannot send a header, so the token travels here as `token`. */
+  connectionParams?: Record<string, string | undefined> | null | undefined;
 }
 
-export async function createContext({ useCases, authorization }: ContextInput): Promise<Context> {
-  const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
+export async function createContext({ useCases, authorization, connectionParams }: ContextInput): Promise<Context> {
+  const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? connectionParams?.["token"];
   const found = token ? await useCases.auth.authenticate(token) : null;
   return { useCases, actor: found?.actor ?? null, session: found?.session ?? null };
 }

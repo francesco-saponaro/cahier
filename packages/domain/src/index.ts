@@ -33,3 +33,5 @@ export { isTimeZone, nextOccurrence, type ScheduleShape } from "./schedule.js";
 export { isStopWord, phraseOf, queryTerms, queryWords, stem } from "./grounding/terms.js";
 export { byRank, packContext, type PackOptions, type RetrievedChunk } from "./grounding/pack.js";
 export { REFUSALS, extractiveAnswerer, type Answerer, type CitationDraft, type ComposeRequest, type Composition, type ExtractiveOptions } from "./grounding/compose.js";
+export { ANSWER_RESERVE, costedRows, estimatedCostMicros, roomInBudget, type CostedRow, type TokenCounts } from "./grounding/meter.js";
+export { DEFAULT_RATE_LIMIT, rateLimiterCreator, type RateLimit, type RateLimiter } from "./grounding/rate.js";

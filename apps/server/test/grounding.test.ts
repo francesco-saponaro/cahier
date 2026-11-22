@@ -1,11 +1,14 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { codeOf, reasonOf, startServer, type Server } from "./harness.js";
+import type { SendEvent } from "@cahier/domain";
+import { codeOf, collect, reasonOf, startServer, type Server } from "./harness.js";
 
 /*
  * The pipeline over HTTP on the seed: Tom uploads a page into his private library, the document
  * comes back indexed with its chunks, and the viewer's data (text, spans, heading paths) is what
  * the chunks say. Replacing bumps the version, re-indexing keeps it, and uploads can be switched
- * off by the admin.
+ * off by the admin. Then Tom asks his agent a question: the answer streams over SSE as events,
+ * the citations point into the page, the usage rows and the budget move, and the refusals
+ * come back with their reason.
  */
 
 let server: Server;
@@ -63,5 +66,64 @@ describe("ingestion", () => {
     expect(await reasonOf(tom.documents.upload.mutate({ libraryId, title: "Another", text: "Text." }))).toBe("tool_off");
     await noor.admin.settings.update.mutate({ tools: { uploads: true } });
     expect((await tom.documents.upload.mutate({ libraryId, title: "Another", text: "Text." })).document.status).toBe("indexed");
+  });
+});
+
+describe("asking", () => {
+  let agentId: string;
+  let conversationId: string;
+  const month = new Date().toISOString().slice(0, 7);
+
+  const ask = (client: Client, id: string, text: string) => collect<SendEvent>((handlers) => client.messages.send.subscribe({ conversationId: id, text }, handlers));
+
+  test("the answer streams as events, with citations into the uploaded page, and lands in the conversation", async () => {
+    const libraryId = (await tom.libraries.list.query({ scope: "own", sort: "name", limit: 50 })).items.find((l) => l.name === "Charger manuals")!.id;
+    const made = await tom.agents.create.mutate({ name: "Charger expert", description: "", instructions: "Answer from the manuals only.", modelId: "small-4", maxContextTokens: 4000, libraryIds: [libraryId] });
+    agentId = made.agent.id;
+    await tom.agents.publish.mutate({ versionId: made.version.id });
+    conversationId = (await tom.conversations.create.mutate({ agentId })).id;
+    const events = await ask(tom, conversationId, "What does a red light on a slot mean?");
+    expect(events[0]?.type).toBe("started");
+    expect(events.at(-1)?.type).toBe("done");
+    const text = events.filter((e) => e.type === "delta").map((e) => (e.type === "delta" ? e.text : "")).join("");
+    expect(text).toBe("A red light means the breaker tripped. [1]");
+    const citations = events.find((e) => e.type === "citations");
+    expect(citations?.type === "citations" ? citations.citations : []).toEqual([expect.objectContaining({ index: 1, documentTitle: "Charger faults, short", documentVersion: 2, quote: "A red light means the breaker tripped." })]);
+    const messages = await tom.messages.list.query({ conversationId, limit: 50 });
+    expect(messages.items.map((m) => [m.ordinal, m.role, m.status, m.citations.length])).toEqual([
+      [0, "user", "complete", 0],
+      [1, "assistant", "complete", 1],
+    ]);
+    const citation = messages.items[1]!.citations[0]!;
+    const page = await tom.documents.get.query({ id: citation.documentId! });
+    expect(page.document.body.slice(citation.startChar, citation.endChar)).toBe(citation.quote);
+    const conversation = (await tom.conversations.get.query({ id: conversationId })).conversation;
+    expect(conversation).toMatchObject({ title: "What does a red light on a slot mean?", messageCount: 2 });
+    expect(conversation.tokenTotal).toBe(messages.items[1]!.promptTokens + messages.items[1]!.contextTokens + messages.items[1]!.completionTokens);
+    const mine = await tom.usage.mine.query({ month });
+    expect(mine.tokens).toBeGreaterThanOrEqual(conversation.tokenTotal);
+  });
+
+  test("nothing found is a refusal with its reason, and so is an exhausted budget", async () => {
+    const nothing = await ask(tom, conversationId, "What is the canteen menu on Fridays?");
+    expect(nothing.at(-1)).toMatchObject({ type: "refused", reason: "no_sources" });
+    const report = await noor.admin.usage.report.query({ month });
+    await noor.admin.budgets.set.mutate({ month, limitMicros: report.total.costMicros });
+    const exhausted = await ask(tom, conversationId, "What does a red light on a slot mean?");
+    expect(exhausted.at(-1)).toMatchObject({ type: "refused", reason: "budget_exhausted" });
+    await noor.admin.budgets.set.mutate({ month, limitMicros: 50_000_000 });
+    expect((await ask(tom, conversationId, "What does a red light on a slot mean?")).at(-1)?.type).toBe("done");
+    expect((await tom.conversations.get.query({ id: conversationId })).conversation.messageCount).toBe(8);
+  });
+
+  test("a colleague cannot send into Tom's conversation, and a bad input is refused before anything is written", async () => {
+    await expect(ask(lea, conversationId, "Hello")).rejects.toMatchObject({ data: { code: "NOT_FOUND" } });
+    await expect(ask(tom, conversationId, "")).rejects.toMatchObject({ data: { code: "BAD_REQUEST" } });
+    await expect(ask(tom, "cnv_nothing", "Hello")).rejects.toMatchObject({ data: { code: "NOT_FOUND" } });
+    expect((await tom.conversations.get.query({ id: conversationId })).conversation.messageCount).toBe(8);
+  });
+
+  test("without a token the subscription is unauthorized", async () => {
+    await expect(ask(server.clientFor(), conversationId, "Hello")).rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
   });
 });

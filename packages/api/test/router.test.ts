@@ -21,7 +21,7 @@ function world() {
   const deps: Deps = { ports, unitOfWork, clock: systemClock, ids: cryptoIdGeneratorCreator(), sessionHours: 72 };
   const useCases = useCasesCreator(deps);
   const createCaller = createCallerFactory(appRouter);
-  const callerFor = async (authorization?: string) => createCaller(await createContext({ useCases, authorization }));
+  const callerFor = async (authorization?: string, connectionParams?: Record<string, string>) => createCaller(await createContext({ useCases, authorization, connectionParams }));
   const signIn = async (email: string) => {
     const anonymous = await callerFor();
     const { token } = await anonymous.auth.signIn({ email, password: PASSWORD });
@@ -106,6 +106,25 @@ describe("the router", () => {
     expect(conversation.agentVersionId).toBe(created.version.id);
     expect(await lea.auth.signOut()).toEqual({ ok: true });
     expect((await thrown((await callerFor(`Bearer ${token}`)).auth.me())).code).toBe("UNAUTHORIZED");
+  });
+
+  test("messages.send called in-process is an async iterable of events, the way the browser demo will consume it", async () => {
+    const { signIn, callerFor } = world();
+    const { caller: lea } = await signIn("lea@example.com");
+    const events = [];
+    for await (const e of await lea.messages.send({ conversationId: "cnv_2", text: "How many days do I earn?" })) events.push(e);
+    expect(events[0]?.type).toBe("started");
+    expect(events.at(-1)?.type).toBe("done");
+    expect(events.filter((e) => e.type === "delta").map((e) => (e.type === "delta" ? e.text : "")).join("")).toBe("Everyone earns 25 days. [1]");
+    // The checks run when the iterable is first pulled, as a subscription's do.
+    const start = async (iterable: Promise<AsyncIterable<unknown>>) => {
+      await (await iterable)[Symbol.asyncIterator]().next();
+    };
+    const { token } = await signIn("tom@example.com");
+    const viaParams = await callerFor(undefined, { token });
+    expect((await thrown(start(viaParams.messages.send({ conversationId: "cnv_2", text: "Hello" })))).code).toBe("NOT_FOUND");
+    expect((await thrown((await callerFor()).messages.send({ conversationId: "cnv_2", text: "Hello" }))).code).toBe("UNAUTHORIZED");
+    expect((await thrown(start(lea.messages.send({ conversationId: "cnv_3", text: "Hello" })))).code).toBe("PRECONDITION_FAILED");
   });
 
   test("the router's type is exported for the web app", () => {

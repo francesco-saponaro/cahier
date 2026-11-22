@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@trpc/client": "^11.4.3",
+    "eventsource": "^5.1.5",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^4.1.12"

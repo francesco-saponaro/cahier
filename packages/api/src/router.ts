@@ -31,6 +31,11 @@ const conversations = router({
 
 const messages = router({
   list: memberProcedure.input(inputs.messageList).query(async ({ ctx, input }) => unwrap(await ctx.useCases.messages.list(ctx.actor, input.conversationId, pageQuery(input)))),
+  /** The pipeline as a stream of events: `started`, `delta`…, `citations`, `done`; or `refused` with its reason; or `failed`. */
+  send: memberProcedure.input(inputs.messageSend).subscription(async function* ({ ctx, input }) {
+    const events = unwrap(await ctx.useCases.messages.send(ctx.actor, input.conversationId, input.text));
+    yield* events;
+  }),
 });
 
 const libraries = router({

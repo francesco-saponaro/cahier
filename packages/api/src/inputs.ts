@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CONTEXT_MIN, DESCRIPTION_MAX, INSTRUCTIONS_MAX, MAX_PAGE_SIZE, NAME_MAX, PROMPT_MAX, RETENTION_RANGE, TEXT_MAX, TITLE_MAX } from "@cahier/domain";
+import { CONTEXT_MIN, DESCRIPTION_MAX, INSTRUCTIONS_MAX, MAX_PAGE_SIZE, NAME_MAX, PROMPT_MAX, QUESTION_MAX, RETENTION_RANGE, TEXT_MAX, TITLE_MAX } from "@cahier/domain";
 
 /*
  * Every procedure's input as a zod schema. The web app imports these for its forms, so what the
@@ -30,6 +30,7 @@ export const conversationList = paged({ status: z.enum(["active", "archived"]), 
 export const conversationCreate = z.object({ agentId: id });
 export const conversationRename = z.object({ id, title: z.string().trim().min(1).max(TITLE_MAX) });
 export const messageList = paged({ conversationId: id });
+export const messageSend = z.object({ conversationId: id, text: z.string().min(1).max(QUESTION_MAX) });
 
 export const libraryList = paged({ scope, q, sort: z.enum(["name", "newest", "updated"]) });
 export const libraryFields = z.object({ name: z.string().max(NAME_MAX), description: z.string().max(DESCRIPTION_MAX) });

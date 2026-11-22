@@ -5,5 +5,5 @@ import { readConfig } from "./config.js";
 const config = readConfig();
 const { db } = await connect(config.databaseUrl);
 if (config.seedOnStart) await seedDatabase(db, await generateSeed());
-const app = buildApp({ db, webOrigin: config.webOrigin, sessionHours: config.sessionHours });
+const app = buildApp({ db, webOrigin: config.webOrigin, sessionHours: config.sessionHours, streamDelayMs: 12 });
 await app.listen({ port: config.port, host: config.host });

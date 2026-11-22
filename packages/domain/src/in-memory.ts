@@ -315,8 +315,18 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
           .map((m) => ({ ...m, citations: store.citations.filter((c) => c.messageId === m.id).sort((a, b) => a.index - b.index).map((c) => ({ ...c })) }));
         return keysetPage(rows, { key: (m) => m.ordinal, direction: "asc" }, query);
       },
+      insert: async (m) => {
+        store.messages.push({ ...m });
+      },
+      update: async (m) => replaceById(store.messages, m),
+      insertCitations: async (citations) => {
+        store.citations.push(...citations.map((c) => ({ ...c })));
+      },
     },
     usage: {
+      insert: async (u) => {
+        store.usageEvents.push({ ...u });
+      },
       spentMicros: async (workspaceId, month) => sum(monthRows(workspaceId, month)).costMicros,
       mine: async (workspaceId, userId, month) => {
         const rows = monthRows(workspaceId, month).filter((u) => u.userId === userId);

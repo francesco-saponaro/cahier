@@ -92,7 +92,7 @@ export function fixture(): Fixture {
       document("doc_draft", "lib_drafts", "A draft", "# Draft\n\nSoon.", "uploaded", day(2)),
     ],
     chunks: [
-      { id: "chk_1", documentId: "doc_leave", ordinal: 0, headingPath: ["Leave"], headingText: "Leave", startChar: 0, endChar: 31, tokenCount: 8, body: "# Leave\n\nEveryone earns 25 days." },
+      { id: "chk_1", documentId: "doc_leave", ordinal: 0, headingPath: ["Leave"], headingText: "Leave", startChar: 0, endChar: 32, tokenCount: 8, body: "# Leave\n\nEveryone earns 25 days." },
       { id: "chk_2", documentId: "doc_expenses", ordinal: 1, headingPath: ["Expenses"], headingText: "Expenses", startChar: 12, endChar: 29, tokenCount: 4, body: "Keep the receipt." },
       { id: "chk_3", documentId: "doc_expenses", ordinal: 0, headingPath: [], headingText: "", startChar: 0, endChar: 10, tokenCount: 2, body: "# Expenses" },
     ],
@@ -141,7 +141,7 @@ export function fixture(): Fixture {
       { id: "msg_3", conversationId: "cnv_1", ordinal: 2, role: "user", body: "Thanks", status: "complete", refusedReason: null, modelId: null, agentVersionId: null, promptTokens: 0, contextTokens: 0, completionTokens: 0, createdAt: day(10), completedAt: day(10) },
       { id: "msg_4", conversationId: "cnv_5", ordinal: 0, role: "user", body: "Tom asks", status: "complete", refusedReason: null, modelId: null, agentVersionId: null, promptTokens: 0, contextTokens: 0, completionTokens: 0, createdAt: day(11), completedAt: day(11) },
     ],
-    citations: [{ id: "cit_1", messageId: "msg_2", index: 1, chunkId: "chk_1", documentId: "doc_leave", documentTitle: "Leave", documentVersion: 1, startChar: 9, endChar: 31, quote: "Everyone earns 25 days." }],
+    citations: [{ id: "cit_1", messageId: "msg_2", index: 1, chunkId: "chk_1", documentId: "doc_leave", documentTitle: "Leave", documentVersion: 1, startChar: 9, endChar: 32, quote: "Everyone earns 25 days." }],
     usageEvents: [
       usage("use_1", "usr_lea", "agt_helper", "small-4", "input", 1000, 150, day(10)),
       usage("use_2", "usr_lea", "agt_helper", "small-4", "cached_input", 2000, 15, day(10)),
@@ -356,7 +356,7 @@ export function portContract(name: string, create: (data: Fixture) => Promise<Po
       it("searches the indexed documents of the given libraries, best first, with the document's title and version", async () => {
         const hits = await p.chunks.search({ libraryIds: ["lib_handbook", "lib_drafts"], question: "How many days do I earn?", limit: 10 });
         expect(hits.map((h) => h.chunkId)).toEqual(["chk_1"]);
-        expect(hits[0]).toMatchObject({ documentId: "doc_leave", documentTitle: "Leave", documentVersion: 1, ordinal: 0, startChar: 0, endChar: 31, tokenCount: 8, headingPath: ["Leave"] });
+        expect(hits[0]).toMatchObject({ documentId: "doc_leave", documentTitle: "Leave", documentVersion: 1, ordinal: 0, startChar: 0, endChar: 32, tokenCount: 8, headingPath: ["Leave"] });
         expect(hits[0]!.score).toBeGreaterThan(0);
         expect((await p.chunks.search({ libraryIds: ["lib_handbook"], question: "receipt", limit: 10 })).map((h) => h.chunkId)).toEqual(["chk_2"]);
         // The title counts: both chunks of "Expenses" match a question about expenses.
@@ -494,10 +494,32 @@ export function portContract(name: string, create: (data: Fixture) => Promise<Po
       });
     });
 
+    describe("writing messages, citations and usage", () => {
+      it("inserts a message, updates its status and counts, and inserts its citations", async () => {
+        const at = day(20);
+        await p.messages.insert({ id: "msg_w1", conversationId: "cnv_5", ordinal: 1, role: "assistant", body: "", status: "streaming", refusedReason: null, modelId: "small-4", agentVersionId: "agv_f1", promptTokens: 12, contextTokens: 0, completionTokens: 0, createdAt: at, completedAt: null });
+        await p.messages.update({ id: "msg_w1", conversationId: "cnv_5", ordinal: 1, role: "assistant", body: "Keep the receipt. [1]", status: "complete", refusedReason: null, modelId: "small-4", agentVersionId: "agv_f1", promptTokens: 12, contextTokens: 4, completionTokens: 6, createdAt: at, completedAt: day(21) });
+        await p.messages.insertCitations([{ id: "cit_w1", messageId: "msg_w1", index: 1, chunkId: "chk_2", documentId: "doc_expenses", documentTitle: "Expenses", documentVersion: 1, startChar: 12, endChar: 29, quote: "Keep the receipt." }]);
+        await p.messages.insertCitations([]);
+        const [msg] = (await p.messages.list("cnv_5", { limit: 50, cursor: null })).items.filter((m) => m.id === "msg_w1");
+        expect(msg).toMatchObject({ body: "Keep the receipt. [1]", status: "complete", contextTokens: 4, completionTokens: 6, completedAt: day(21) });
+        expect(msg?.citations).toEqual([expect.objectContaining({ id: "cit_w1", index: 1, chunkId: "chk_2", quote: "Keep the receipt." })]);
+        await p.messages.insert({ id: "msg_w2", conversationId: "cnv_5", ordinal: 2, role: "assistant", body: "No.", status: "refused", refusedReason: "no_sources", modelId: "small-4", agentVersionId: "agv_f1", promptTokens: 0, contextTokens: 0, completionTokens: 0, createdAt: at, completedAt: at });
+        expect((await p.messages.list("cnv_5", { limit: 50, cursor: null })).items.map((m) => m.ordinal)).toEqual([0, 1, 2]);
+      });
+
+      it("inserts usage rows that the sums then see", async () => {
+        expect(await p.usage.spentMicros("ws_oriel", "2026-10")).toBe(150);
+        await p.usage.insert({ id: "use_w1", workspaceId: "ws_oriel", userId: "usr_tom", agentId: "agt_field", messageId: "msg_w1", modelId: "small-4", kind: "output", tokens: 6, microsPer1k: 600, costMicros: 4, occurredAt: day(45) });
+        expect(await p.usage.spentMicros("ws_oriel", "2026-10")).toBe(154);
+        expect((await p.usage.mine("ws_oriel", "usr_tom", "2026-10")).byKind.output).toEqual({ tokens: 6, costMicros: 4 });
+      });
+    });
+
     describe("usage and budgets", () => {
       it("sums a month's spend and a member's own usage by kind", async () => {
         expect(await p.usage.spentMicros("ws_oriel", "2026-09")).toBe(150 + 30 + 300 + 700 + 21);
-        expect(await p.usage.spentMicros("ws_oriel", "2026-10")).toBe(150);
+        expect(await p.usage.spentMicros("ws_oriel", "2026-10")).toBe(154);
         expect(await p.usage.spentMicros("ws_brindille", "2026-09")).toBe(0);
         expect(await p.usage.mine("ws_oriel", "usr_lea", "2026-09")).toEqual({
           tokens: 3500,

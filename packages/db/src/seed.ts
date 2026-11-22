@@ -470,6 +470,7 @@ export async function generateSeed(options: SeedOptions = {}): Promise<SeedData>
     if (docs.length === 0) return null;
     const conv: Row<"conversations"> = { id: id("cnv"), workspaceId: ws.id, userId: user.id, agentId: a.id, agentVersionId: version.id, title: "", status, messageCount: 0, tokenTotal: 0, createdAt, lastMessageAt: createdAt, archivedAt: null };
     let at = createdAt;
+    let written = 0; // turns that produced messages: a chunk with nothing quotable skips a turn and must not leave a gap in the ordinals
     for (let t = 0; t < turns; t++) {
       const doc = r.pick(docs);
       const chunks = chunksByDoc.get(doc.id)!;
@@ -496,8 +497,8 @@ export async function generateSeed(options: SeedOptions = {}): Promise<SeedData>
       if (lines.length === 0) continue;
       const firstDoc = data.documents.find((d) => d.id === first.documentId)!;
       const question = scheduled ? `Run: ${a.name}, ${at.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}` : r.pick(QUESTIONS)(firstDoc.title, keyword(doc.body.slice(cits[0]!.start, cits[0]!.end)));
-      if (t === 0) conv.title = question.length > 60 ? `${question.slice(0, 57)}...` : question;
-      const userMessage: Row<"messages"> = { id: id("msg"), conversationId: conv.id, ordinal: t * 2, role: "user", body: question, status: "complete", refusedReason: null, modelId: null, agentVersionId: null, promptTokens: 0, contextTokens: 0, completionTokens: 0, createdAt: at, completedAt: at };
+      if (written === 0) conv.title = question.length > 60 ? `${question.slice(0, 57)}...` : question;
+      const userMessage: Row<"messages"> = { id: id("msg"), conversationId: conv.id, ordinal: written * 2, role: "user", body: question, status: "complete", refusedReason: null, modelId: null, agentVersionId: null, promptTokens: 0, contextTokens: 0, completionTokens: 0, createdAt: at, completedAt: at };
       at = new Date(at.getTime() + r.int(2, 9) * 1000);
       const outcome = t === turns - 1 && r.chance(0.06) ? r.pick(["budget_exhausted", "rate_limited", "no_sources", "failed"] as const) : "complete";
       const answer = outcome === "complete" || outcome === "failed" ? lines.join("\n") : REFUSALS[outcome]!;
@@ -505,7 +506,7 @@ export async function generateSeed(options: SeedOptions = {}): Promise<SeedData>
       const contextTokens = outcome === "complete" || outcome === "failed" ? picked.reduce((n, c) => n + c.tokenCount, 0) : 0;
       const completionTokens = outcome === "complete" ? countTokens(answer) : 0;
       const assistant: Row<"messages"> = {
-        id: id("msg"), conversationId: conv.id, ordinal: t * 2 + 1, role: "assistant", body: outcome === "failed" ? "" : answer,
+        id: id("msg"), conversationId: conv.id, ordinal: written * 2 + 1, role: "assistant", body: outcome === "failed" ? "" : answer,
         status: outcome === "complete" ? "complete" : outcome === "failed" ? "failed" : "refused", refusedReason: outcome === "complete" || outcome === "failed" ? null : outcome,
         modelId: version.modelId, agentVersionId: version.id, promptTokens, contextTokens, completionTokens, createdAt: at, completedAt: new Date(at.getTime() + r.int(1, 6) * 1000),
       };
@@ -524,6 +525,7 @@ export async function generateSeed(options: SeedOptions = {}): Promise<SeedData>
           data.usageEvents.push({ id: id("use"), workspaceId: ws.id, userId: user.id, agentId: a.id, messageId: status === "deleted" ? null : assistant.id, modelId: version.modelId, kind, tokens, microsPer1k: price.microsPer1k, costMicros: costMicros(tokens, price.microsPer1k), occurredAt: at });
         }
       }
+      written++;
       conv.messageCount += 2;
       conv.tokenTotal += promptTokens + contextTokens + completionTokens;
       conv.lastMessageAt = at;

@@ -94,6 +94,7 @@ const schedules = router({
   pause: memberProcedure.input(inputs.byId).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.schedules.pause(ctx.actor, input.id))),
   resume: memberProcedure.input(inputs.byId).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.schedules.resume(ctx.actor, input.id))),
   end: memberProcedure.input(inputs.byId).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.schedules.end(ctx.actor, input.id))),
+  runNow: memberProcedure.input(inputs.byId).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.schedules.runNow(ctx.actor, input.id))),
 });
 
 const usage = router({

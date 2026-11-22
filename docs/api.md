@@ -111,8 +111,9 @@ What `send` does, in order: writes the user message and titles a new conversatio
 | `schedules.pause` | mutation | member | `{ id }` | The schedule, `paused`, `nextRunAt` null. |
 | `schedules.resume` | mutation | member | `{ id }` | The schedule, `active`, `nextRunAt` computed again. |
 | `schedules.end` | mutation | member | `{ id }` | The schedule, `ended`. Final. |
+| `schedules.runNow` | mutation | member | `{ id }` | The run, done at once whatever the schedule's next time, which is left alone: `{ id, scheduledFor, startedAt, finishedAt, status, conversationId, error }`. `succeeded` when the answer completed, `failed` with the refusal's reason or the error otherwise, `skipped` with why when the tool is off or the member no longer active. `CONFLICT`/`forbidden_transition` on an ended schedule. |
 
-`schedules.runNow` and the tick that runs them land with the pipeline.
+The tick is not a procedure. The server runs it every minute (the demo on an interval): it closes the open budgets of past months, deletes archived conversations older than the workspace's retention (the row stays with its counts, the messages go, the usage rows keep their tokens), and runs every `active` schedule whose `nextRunAt` has passed as a conversation opened with the member's own rights, titled after the schedule. A run already `running` makes the new one `skipped`; a `once` schedule ends after its run; the others get their next time in their time zone. Every change it makes has an audit row with no actor.
 
 ### `usage`
 

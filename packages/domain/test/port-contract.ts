@@ -463,6 +463,27 @@ export function portContract(name: string, create: (data: Fixture) => Promise<Po
     });
 
     describe("conversations and messages", () => {
+      it("answers the archived conversations of a workspace archived before an instant, and deletes a conversation's messages", async () => {
+        const archived = (await p.conversations.findById("cnv_3"))!;
+        await p.conversations.update({ ...archived, archivedAt: day(6) });
+        expect((await p.conversations.archivedBefore("ws_oriel", day(6))).map((c) => c.id)).toEqual([]);
+        expect((await p.conversations.archivedBefore("ws_oriel", day(7))).map((c) => c.id)).toEqual(["cnv_3"]);
+        expect((await p.conversations.archivedBefore("ws_brindille", day(7))).map((c) => c.id)).toEqual([]);
+        await p.messages.insert({ id: "msg_gone", conversationId: "cnv_3", ordinal: 0, role: "user", body: "Old", status: "complete", refusedReason: null, modelId: null, agentVersionId: null, promptTokens: 0, contextTokens: 0, completionTokens: 0, createdAt: day(5), completedAt: day(5) });
+        await p.messages.insert({ id: "msg_gone2", conversationId: "cnv_3", ordinal: 1, role: "assistant", body: "Yes. [1]", status: "complete", refusedReason: null, modelId: "small-4", agentVersionId: "agv_h1", promptTokens: 1, contextTokens: 1, completionTokens: 1, createdAt: day(5), completedAt: day(5) });
+        await p.messages.insertCitations([{ id: "cit_gone", messageId: "msg_gone2", index: 1, chunkId: "chk_2", documentId: "doc_expenses", documentTitle: "Expenses", documentVersion: 1, startChar: 12, endChar: 29, quote: "Keep the receipt." }]);
+        await p.usage.insert({ id: "use_gone", workspaceId: "ws_oriel", userId: "usr_lea", agentId: "agt_helper", messageId: "msg_gone2", modelId: "small-4", kind: "input", tokens: 1, microsPer1k: 150, costMicros: 0, occurredAt: day(45) });
+        expect(await p.messages.deleteByConversation("cnv_3")).toBe(2);
+        expect((await p.messages.list("cnv_3", { limit: 50, cursor: null })).items).toEqual([]);
+        // The usage row survives without its message, so the month still adds up.
+        expect((await p.usage.mine("ws_oriel", "usr_lea", "2026-10")).byKind.input.tokens).toBe(1000);
+        await p.conversations.update(archived);
+      });
+
+      it("lists every workspace", async () => {
+        expect((await p.workspaces.list()).map((w) => w.id)).toEqual(["ws_brindille", "ws_oriel"]);
+      });
+
       it("lists a member's conversations by status, latest first, with the agent's name and a text filter", async () => {
         const active = await p.conversations.list("ws_oriel", "usr_lea", { limit: 50, cursor: null, status: "active" });
         expect(active.items.map((c) => [c.id, c.agentName])).toEqual([
@@ -550,6 +571,11 @@ export function portContract(name: string, create: (data: Fixture) => Promise<Po
         ]);
       });
 
+      it("lists the open budgets of months before a given one, across workspaces", async () => {
+        expect((await p.budgets.openBefore("2026-09")).map((b) => b.id)).toEqual([]);
+        expect((await p.budgets.openBefore("2026-10")).map((b) => b.id).sort()).toEqual(["bud_1", "bud_3"]);
+      });
+
       it("finds a month's budget, lists a workspace's, inserts and updates one", async () => {
         expect((await p.budgets.find("ws_oriel", "2026-09"))?.limitMicros).toBe(2_000_000);
         expect(await p.budgets.find("ws_oriel", "2026-10")).toBeNull();
@@ -577,6 +603,23 @@ export function portContract(name: string, create: (data: Fixture) => Promise<Po
         const s = (await p.schedules.findById("sch_x"))!;
         await p.schedules.update({ ...s, status: "paused", nextRunAt: null });
         expect(await p.schedules.findById("sch_x")).toMatchObject({ status: "paused", nextRunAt: null });
+      });
+
+      it("answers the active schedules due at an instant, oldest first, across workspaces", async () => {
+        expect((await p.schedules.due(day(13))).map((s) => s.id)).toEqual([]);
+        expect((await p.schedules.due(day(14))).map((s) => s.id)).toEqual(["sch_1"]);
+        await p.schedules.insert({ id: "sch_due", workspaceId: "ws_brindille", userId: "usr_bob", agentId: "agt_shop", name: "Bob's", prompt: "?", cadence: "daily", atMinute: 0, weekday: null, dayOfMonth: null, timezone: "UTC", nextRunAt: day(12), status: "active", createdAt: day(1), lastRunAt: null });
+        expect((await p.schedules.due(day(30))).map((s) => s.id)).toEqual(["sch_due", "sch_1"]);
+        // Paused and ended schedules are never due.
+        expect((await p.schedules.due(day(60))).map((s) => s.id)).toEqual(["sch_due", "sch_1"]);
+      });
+
+      it("inserts and updates a run, which the schedule's runs then show", async () => {
+        await p.schedules.insertRun({ id: "run_x", scheduledPromptId: "sch_1", scheduledFor: day(14), startedAt: null, finishedAt: null, status: "queued", conversationId: null, error: null });
+        expect((await p.schedules.runs("sch_1")).map((r) => r.id)).toEqual(["run_x", "run_1", "run_2"]);
+        await p.schedules.updateRun({ id: "run_x", scheduledPromptId: "sch_1", scheduledFor: day(14), startedAt: day(14), finishedAt: day(14), status: "succeeded", conversationId: "cnv_1", error: null });
+        expect((await p.schedules.runs("sch_1"))[0]).toMatchObject({ status: "succeeded", conversationId: "cnv_1", startedAt: day(14) });
+        expect((await p.schedules.runs("sch_1")).filter((r) => r.status === "running")).toEqual([]);
       });
 
       it("lists the audit log latest first with the actor's name, filtered by entity, actor and action", async () => {

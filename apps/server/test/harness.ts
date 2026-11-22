@@ -21,10 +21,10 @@ export interface Server {
   close: () => Promise<void>;
 }
 
-export async function startServer(options: { authRateLimit?: number } = {}): Promise<Server> {
+export async function startServer(options: { authRateLimit?: number; tickEveryMs?: number } = {}): Promise<Server> {
   const conn = await connectPglite();
   await seedDatabase(conn.db, await generateSeed());
-  const app = buildApp({ db: conn.db, webOrigin: "http://localhost:3000", sessionHours: 72, authRateLimit: options.authRateLimit ?? 1000 });
+  const app = buildApp({ db: conn.db, webOrigin: "http://localhost:3000", sessionHours: 72, authRateLimit: options.authRateLimit ?? 1000, ...(options.tickEveryMs ? { tickEveryMs: options.tickEveryMs } : {}) });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const address = app.server.address();
   const url = typeof address === "object" && address ? `http://127.0.0.1:${address.port}` : "";

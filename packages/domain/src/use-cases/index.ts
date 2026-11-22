@@ -11,6 +11,8 @@ import { conversationsUseCasesCreator } from "./conversations.js";
 import { schedulesUseCasesCreator } from "./schedules.js";
 import { ingestionUseCasesCreator } from "./ingestion.js";
 import { messagesUseCasesCreator } from "./messages.js";
+import { tickUseCasesCreator } from "./tick.js";
+import { rateLimiterCreator } from "../grounding/rate.js";
 
 export { auditRecorder, auditUseCasesCreator, type AuditInput } from "./audit.js";
 export { authUseCasesCreator, tokenHashOf, type AcceptInvitationInput, type Me, type SignInInput, type SignedIn } from "./auth.js";
@@ -24,15 +26,18 @@ export { TITLE_MAX, conversationsUseCasesCreator } from "./conversations.js";
 export { PROMPT_MAX, checkSchedule, schedulesUseCasesCreator, type ScheduleInput } from "./schedules.js";
 export { TEXT_MAX, ingestionUseCasesCreator, type Ingested, type ReplaceInput, type UploadInput } from "./ingestion.js";
 export { QUESTION_MAX, RETRIEVE_LIMIT, messagesUseCasesCreator, type Prepared, type SendEvent } from "./messages.js";
+export { tickUseCasesCreator, type TickReport } from "./tick.js";
 
 /** Every use case, built once over one set of dependencies: what the router and the tests hold. */
-export function useCasesCreator(deps: Deps) {
+export function useCasesCreator(given: Deps) {
+  // One rate limiter for every path that asks a question, the scheduled runs included.
+  const deps: Deps = { ...given, rateLimiter: given.rateLimiter ?? rateLimiterCreator(given.clock) };
   const { libraries, documents } = librariesUseCasesCreator(deps);
   const { conversations, messages } = conversationsUseCasesCreator(deps);
   return {
     conversations,
     messages: { ...messages, ...messagesUseCasesCreator(deps) },
-    schedules: schedulesUseCasesCreator(deps),
+    schedules: { ...schedulesUseCasesCreator(deps), ...tickUseCasesCreator(deps) },
     auth: authUseCasesCreator(deps),
     libraries,
     documents: { ...documents, ...ingestionUseCasesCreator(deps) },

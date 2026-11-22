@@ -17,6 +17,8 @@ export interface AppOptions {
   authRateLimit?: number;
   /** Milliseconds between the pieces of a streamed answer; the tests leave it at none. */
   streamDelayMs?: number;
+  /** How often the tick runs (due schedules, retention, closing months); off when not given. */
+  tickEveryMs?: number;
 }
 
 /**
@@ -32,6 +34,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   const { ports, unitOfWork } = drizzlePortsCreator(options.db);
   const useCases = useCasesCreator({ ports, unitOfWork, clock: systemClock, ids: cryptoIdGeneratorCreator(), sessionHours: options.sessionHours, streamDelayMs: options.streamDelayMs ?? 0 });
+
+  if (options.tickEveryMs && options.tickEveryMs > 0) {
+    const timer = setInterval(() => {
+      useCases.schedules.tick().catch((e: unknown) => app.log.error(e, "tick failed"));
+    }, options.tickEveryMs);
+    app.addHook("onClose", async () => clearInterval(timer));
+  }
 
   app.get("/health", async () => {
     await options.db.execute(sql`select 1`);

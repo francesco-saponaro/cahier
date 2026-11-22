@@ -46,6 +46,8 @@ import type { RateLimiter } from "./grounding/rate.js";
 
 export interface WorkspaceRepository {
   findById(id: string): Promise<Workspace | null>;
+  /** Every workspace, by id: what the housekeeping tick walks. */
+  list(): Promise<Workspace[]>;
   update(workspace: Workspace): Promise<void>;
 }
 
@@ -237,6 +239,8 @@ export interface ConversationRepository {
   findById(id: string): Promise<Conversation | null>;
   /** The member's own, latest message first. */
   list(workspaceId: string, userId: string, filter: ConversationFilter): Promise<Page<ConversationRow>>;
+  /** The workspace's `archived` conversations whose `archivedAt` is before the instant, by id: what retention deletes. */
+  archivedBefore(workspaceId: string, before: Date): Promise<Conversation[]>;
   insert(conversation: Conversation): Promise<void>;
   update(conversation: Conversation): Promise<void>;
 }
@@ -249,6 +253,8 @@ export interface MessageRepository {
   insert(message: Message): Promise<void>;
   update(message: Message): Promise<void>;
   insertCitations(citations: readonly Citation[]): Promise<void>;
+  /** Removes the conversation's messages with their citations; usage rows keep their tokens and lose the message. Answers how many. */
+  deleteByConversation(conversationId: string): Promise<number>;
 }
 
 export interface UsageTotals {
@@ -278,6 +284,8 @@ export interface BudgetRepository {
   find(workspaceId: string, month: string): Promise<Budget | null>;
   /** Latest month first. */
   list(workspaceId: string): Promise<Budget[]>;
+  /** The `open` budgets of months before `month`, across workspaces: what the tick closes. */
+  openBefore(month: string): Promise<Budget[]>;
   insert(budget: Budget): Promise<void>;
   update(budget: Budget): Promise<void>;
 }
@@ -290,8 +298,12 @@ export interface ScheduleRepository {
   list(workspaceId: string, userId: string, query: PageQuery): Promise<Page<ScheduleRow>>;
   insert(schedule: ScheduledPrompt): Promise<void>;
   update(schedule: ScheduledPrompt): Promise<void>;
+  /** The `active` schedules with `nextRunAt` at or before the instant, across workspaces, oldest `nextRunAt` first. */
+  due(now: Date): Promise<ScheduledPrompt[]>;
   /** Latest first. */
   runs(scheduleId: string): Promise<ScheduledRun[]>;
+  insertRun(run: ScheduledRun): Promise<void>;
+  updateRun(run: ScheduledRun): Promise<void>;
 }
 
 export interface AuditFilter extends PageQuery {

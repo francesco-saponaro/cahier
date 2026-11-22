@@ -108,6 +108,7 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
   const ports: Ports = {
     workspaces: {
       findById: async (id) => store.workspaces.find((w) => w.id === id) ?? null,
+      list: async () => [...store.workspaces].sort(byId),
       update: async (w) => replaceById(store.workspaces, w),
     },
     users: {
@@ -303,6 +304,8 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
           .map((c) => ({ ...c, agentName: store.agents.find((a) => a.id === c.agentId)?.name ?? "" }));
         return keysetPage(rows, { key: (c) => c.lastMessageAt.getTime(), direction: "desc" }, filter);
       },
+      archivedBefore: async (workspaceId, before) =>
+        store.conversations.filter((c) => c.workspaceId === workspaceId && c.status === "archived" && c.archivedAt !== null && c.archivedAt.getTime() < before.getTime()).sort(byId),
       insert: async (c) => {
         store.conversations.push({ ...c });
       },
@@ -321,6 +324,13 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
       update: async (m) => replaceById(store.messages, m),
       insertCitations: async (citations) => {
         store.citations.push(...citations.map((c) => ({ ...c })));
+      },
+      deleteByConversation: async (conversationId) => {
+        const gone = new Set(store.messages.filter((m) => m.conversationId === conversationId).map((m) => m.id));
+        store.messages = store.messages.filter((m) => !gone.has(m.id));
+        store.citations = store.citations.filter((c) => !gone.has(c.messageId));
+        for (const u of store.usageEvents) if (u.messageId !== null && gone.has(u.messageId)) u.messageId = null;
+        return gone.size;
       },
     },
     usage: {
@@ -346,6 +356,7 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
     budgets: {
       find: async (workspaceId, month) => store.budgets.find((b) => b.workspaceId === workspaceId && b.month === month) ?? null,
       list: async (workspaceId) => store.budgets.filter((b) => b.workspaceId === workspaceId).sort((a, b) => (a.month < b.month ? 1 : a.month > b.month ? -1 : 0)),
+      openBefore: async (month) => store.budgets.filter((b) => b.status === "open" && b.month < month).sort(byId),
       insert: async (b) => {
         store.budgets.push({ ...b });
       },
@@ -363,7 +374,15 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
         store.scheduledPrompts.push({ ...s });
       },
       update: async (s) => replaceById(store.scheduledPrompts, s),
+      due: async (now) =>
+        store.scheduledPrompts
+          .filter((s) => s.status === "active" && s.nextRunAt !== null && s.nextRunAt.getTime() <= now.getTime())
+          .sort((a, b) => a.nextRunAt!.getTime() - b.nextRunAt!.getTime() || byId(a, b)),
       runs: async (scheduleId) => store.scheduledRuns.filter((r) => r.scheduledPromptId === scheduleId).sort((a, b) => b.scheduledFor.getTime() - a.scheduledFor.getTime() || -byId(a, b)),
+      insertRun: async (r) => {
+        store.scheduledRuns.push({ ...r });
+      },
+      updateRun: async (r) => replaceById(store.scheduledRuns, r),
     },
     audit: {
       insert: async (e) => {

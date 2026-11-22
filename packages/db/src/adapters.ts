@@ -81,6 +81,7 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
   const ports: Ports = {
     workspaces: {
       findById: (id) => one(db.select().from(schema.workspaces).where(eq(schema.workspaces.id, id))),
+      list: () => db.select().from(schema.workspaces).orderBy(sql`${schema.workspaces.id} collate "C"`),
       update: async (w) => {
         await db.update(schema.workspaces).set({ name: w.name, slug: w.slug, tools: w.tools, retentionDays: w.retentionDays }).where(eq(schema.workspaces.id, w.id));
       },
@@ -366,6 +367,12 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
           .limit(k.limit);
         return k.page(rows);
       },
+      archivedBefore: (workspaceId, before) =>
+        db
+          .select()
+          .from(schema.conversations)
+          .where(and(eq(schema.conversations.workspaceId, workspaceId), eq(schema.conversations.status, "archived"), sql`${schema.conversations.archivedAt} < ${before.toISOString()}::timestamptz`))
+          .orderBy(sql`${schema.conversations.id} collate "C"`),
       insert: async (c) => {
         await db.insert(schema.conversations).values(c);
       },
@@ -401,6 +408,11 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
       },
       insertCitations: async (citations) => {
         if (citations.length > 0) await db.insert(schema.citations).values(citations.map((c) => ({ ...c })));
+      },
+      // Citations cascade and usage rows lose their message, by the foreign keys.
+      deleteByConversation: async (conversationId) => {
+        const deleted = await db.delete(schema.messages).where(eq(schema.messages.conversationId, conversationId)).returning({ id: schema.messages.id });
+        return deleted.length;
       },
     },
     usage: {
@@ -455,6 +467,7 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
     budgets: {
       find: (workspaceId, month) => one(db.select().from(schema.budgets).where(and(eq(schema.budgets.workspaceId, workspaceId), eq(schema.budgets.month, month)))),
       list: (workspaceId) => db.select().from(schema.budgets).where(eq(schema.budgets.workspaceId, workspaceId)).orderBy(desc(schema.budgets.month)),
+      openBefore: (month) => db.select().from(schema.budgets).where(and(eq(schema.budgets.status, "open"), sql`${schema.budgets.month} < ${month}`)).orderBy(sql`${schema.budgets.id} collate "C"`),
       insert: async (b) => {
         await db.insert(schema.budgets).values(b);
       },
@@ -484,7 +497,19 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
           .set({ name: s.name, prompt: s.prompt, cadence: s.cadence, atMinute: s.atMinute, weekday: s.weekday, dayOfMonth: s.dayOfMonth, timezone: s.timezone, nextRunAt: s.nextRunAt, status: s.status, lastRunAt: s.lastRunAt })
           .where(eq(schema.scheduledPrompts.id, s.id));
       },
+      due: (now) =>
+        db
+          .select()
+          .from(schema.scheduledPrompts)
+          .where(and(eq(schema.scheduledPrompts.status, "active"), sql`${schema.scheduledPrompts.nextRunAt} <= ${now.toISOString()}::timestamptz`))
+          .orderBy(asc(schema.scheduledPrompts.nextRunAt), sql`${schema.scheduledPrompts.id} collate "C"`),
       runs: (scheduleId) => db.select().from(schema.scheduledRuns).where(eq(schema.scheduledRuns.scheduledPromptId, scheduleId)).orderBy(desc(schema.scheduledRuns.scheduledFor), desc(schema.scheduledRuns.id)),
+      insertRun: async (r) => {
+        await db.insert(schema.scheduledRuns).values(r);
+      },
+      updateRun: async (r) => {
+        await db.update(schema.scheduledRuns).set({ startedAt: r.startedAt, finishedAt: r.finishedAt, status: r.status, conversationId: r.conversationId, error: r.error }).where(eq(schema.scheduledRuns.id, r.id));
+      },
     },
     audit: {
       insert: async (e) => {

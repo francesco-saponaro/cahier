@@ -127,3 +127,22 @@ describe("asking", () => {
     await expect(ask(server.clientFor(), conversationId, "Hello")).rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
   });
 });
+
+describe("scheduled prompts", () => {
+  test("runNow runs the member's schedule at once as a conversation of theirs and answers the run", async () => {
+    const helper = (await lea.agents.list.query({ scope: "shared", sort: "name", limit: 50 })).items.find((a) => a.name === "Handbook helper")!;
+    const schedule = await lea.schedules.create.mutate({ agentId: helper.id, name: "Leave check", prompt: "How many days of paid leave do I earn a year?", cadence: "weekly", atMinute: 9 * 60, weekday: 1, dayOfMonth: null, timezone: "Europe/Paris" });
+    const run = await lea.schedules.runNow.mutate({ id: schedule.id });
+    expect(run).toMatchObject({ scheduledPromptId: schedule.id, status: "succeeded", error: null });
+    expect(run.conversationId).toBeTruthy();
+    const conversation = (await lea.conversations.get.query({ id: run.conversationId! })).conversation;
+    expect(conversation).toMatchObject({ title: "Leave check", messageCount: 2 });
+    const messages = await lea.messages.list.query({ conversationId: run.conversationId!, limit: 10 });
+    expect(messages.items[1]?.body).toContain("25 working days");
+    expect((await lea.schedules.get.query({ id: schedule.id })).runs.map((r) => r.id)).toEqual([run.id]);
+    expect((await lea.schedules.get.query({ id: schedule.id })).schedule.nextRunAt).toEqual(schedule.nextRunAt);
+    expect(await codeOf(tom.schedules.runNow.mutate({ id: schedule.id }))).toBe("NOT_FOUND");
+    await lea.schedules.end.mutate({ id: schedule.id });
+    expect(await reasonOf(lea.schedules.runNow.mutate({ id: schedule.id }))).toBe("forbidden_transition");
+  });
+});

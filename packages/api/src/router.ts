@@ -5,8 +5,8 @@ import { adminProcedure, memberProcedure, publicProcedure, router, unwrap } from
 /*
  * The router: one procedure per use case, each parsing its input with the shared zod schema,
  * handing the actor and the input to the use case, and unwrapping the result. No rule lives
- * here. The procedures the pipeline needs (`messages.send`, the document ingestion,
- * `schedules.tick` and `runNow`) land with it in session 3.
+ * here. `messages.send` is a subscription: the answer streams as events over SSE on the server
+ * and as an async iterable in the browser demo.
  */
 
 const auth = router({
@@ -47,6 +47,9 @@ const libraries = router({
 const documents = router({
   list: memberProcedure.input(inputs.documentList).query(async ({ ctx, input }) => unwrap(await ctx.useCases.documents.list(ctx.actor, input.libraryId, { ...pageQuery(input), status: input.status, q: input.q, sort: input.sort }))),
   get: memberProcedure.input(inputs.byId).query(async ({ ctx, input }) => unwrap(await ctx.useCases.documents.get(ctx.actor, input.id))),
+  upload: memberProcedure.input(inputs.documentUpload).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.documents.upload(ctx.actor, input))),
+  replace: memberProcedure.input(inputs.documentReplace).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.documents.replace(ctx.actor, input.id, { text: input.text, title: input.title }))),
+  reindex: memberProcedure.input(inputs.byId).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.documents.reindex(ctx.actor, input.id))),
   remove: memberProcedure.input(inputs.byId).mutation(async ({ ctx, input }) => {
     unwrap(await ctx.useCases.documents.remove(ctx.actor, input.id));
     return { ok: true as const };

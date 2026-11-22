@@ -70,9 +70,10 @@ Every list takes `limit` (1 to 50, 20 by default) and `cursor` (the `nextCursor`
 | `libraries.remove` | mutation | member | `{ id }` | `{ ok: true }`. Owner or admin. Its documents and chunks go; past citations keep their quotes. |
 | `documents.list` | query | member | `{ libraryId, status?, q?, sort: newest \| title, limit?, cursor? }` | A page of documents without their text, for a library the caller may read. |
 | `documents.get` | query | member | `{ id }` | `{ document, library, chunks }`: the text and the chunks by ordinal with their spans and heading paths. |
+| `documents.upload` | mutation | member | `{ libraryId, title, text, sourceName? }` | `{ document, chunks }`: the document indexed inline, with the chunks the chunker cut (spans, heading paths, token counts). The library's owner or an admin; text or Markdown of 1 to 400,000 characters; `PRECONDITION_FAILED`/`tool_off` when uploads are off. Each step of the state machine (`uploaded` → `processing` → `indexed`, or `failed` with the error) writes an audit row. |
+| `documents.replace` | mutation | member | `{ id, text, title? }` | `{ document, chunks }` with `version` bumped and the chunks rewritten. Citations made against the old text keep their quote and `documentVersion`; their `chunkId` goes null. |
+| `documents.reindex` | mutation | member | `{ id }` | `{ document, chunks }`: the chunks cut again with the current chunker, same version. Also indexes a document left `uploaded` or `failed`. `CONFLICT` while one is `processing`. |
 | `documents.remove` | mutation | member | `{ id }` | `{ ok: true }`. The library's owner or an admin. |
-
-`documents.upload`, `.replace` and `.reindex` land with the ingestion.
 
 ### `agents`
 

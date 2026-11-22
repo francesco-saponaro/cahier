@@ -9,6 +9,7 @@ import { agentsUseCasesCreator } from "./agents.js";
 import { sharesUseCasesCreator } from "./shares.js";
 import { conversationsUseCasesCreator } from "./conversations.js";
 import { schedulesUseCasesCreator } from "./schedules.js";
+import { ingestionUseCasesCreator } from "./ingestion.js";
 
 export { auditRecorder, auditUseCasesCreator, type AuditInput } from "./audit.js";
 export { authUseCasesCreator, tokenHashOf, type AcceptInvitationInput, type Me, type SignInInput, type SignedIn } from "./auth.js";
@@ -20,6 +21,7 @@ export { CONTEXT_MIN, INSTRUCTIONS_MAX, agentsUseCasesCreator, type VersionInput
 export { sharesUseCasesCreator, type InboxRow, type SubjectRef } from "./shares.js";
 export { TITLE_MAX, conversationsUseCasesCreator } from "./conversations.js";
 export { PROMPT_MAX, checkSchedule, schedulesUseCasesCreator, type ScheduleInput } from "./schedules.js";
+export { TEXT_MAX, ingestionUseCasesCreator, type Ingested, type ReplaceInput, type UploadInput } from "./ingestion.js";
 
 /** Every use case, built once over one set of dependencies: what the router and the tests hold. */
 export function useCasesCreator(deps: Deps) {
@@ -31,7 +33,7 @@ export function useCasesCreator(deps: Deps) {
     schedules: schedulesUseCasesCreator(deps),
     auth: authUseCasesCreator(deps),
     libraries,
-    documents,
+    documents: { ...documents, ...ingestionUseCasesCreator(deps) },
     agents: agentsUseCasesCreator(deps),
     shares: sharesUseCasesCreator(deps),
     members: membersUseCasesCreator(deps),

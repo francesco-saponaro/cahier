@@ -225,7 +225,10 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
     chunks: {
       listByDocument: async (documentId) => store.chunks.filter((c) => c.documentId === documentId).sort((a, b) => a.ordinal - b.ordinal),
       replaceForDocument: async (documentId, chunks) => {
+        const gone = new Set(store.chunks.filter((c) => c.documentId === documentId).map((c) => c.id));
         store.chunks = [...store.chunks.filter((c) => c.documentId !== documentId), ...chunks.map((c) => ({ ...c }))];
+        // What the database's `on delete set null` does: the citation keeps its quote, not its chunk.
+        for (const c of store.citations) if (c.chunkId !== null && gone.has(c.chunkId)) c.chunkId = null;
       },
       search: async ({ libraryIds, question, limit }) => {
         const terms = queryTerms(question);

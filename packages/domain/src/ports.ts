@@ -1,5 +1,6 @@
 import type { Page, PageQuery } from "./cursor.js";
 import type {
+  Actor,
   Agent,
   AgentVersion,
   AuditEntry,
@@ -30,6 +31,7 @@ import type {
   Workspace,
 } from "./entities.js";
 import type { PriceKind } from "./money.js";
+import type { RetrievedChunk } from "./grounding/pack.js";
 
 /*
  * The ports: what the use cases need from the outside world, as interfaces. `packages/db`
@@ -123,6 +125,8 @@ export interface LibraryRepository {
   findBySlug(workspaceId: string, slug: string): Promise<Library | null>;
   /** The libraries with these ids, by id; missing ids are skipped. */
   findMany(ids: readonly string[]): Promise<Library[]>;
+  /** The subset of `ids` the actor may read, by id: the SQL twin of `canReadLibrary`, so the retrieval filter runs in the database. */
+  readableIds(actor: Actor, ids: readonly string[]): Promise<string[]>;
   list(workspaceId: string, filter: LibraryFilter): Promise<Page<LibraryRow>>;
   insert(library: Library): Promise<void>;
   update(library: Library): Promise<void>;
@@ -150,9 +154,24 @@ export interface DocumentRepository {
   delete(id: string): Promise<void>;
 }
 
+export interface ChunkSearch {
+  libraryIds: readonly string[];
+  question: string;
+  limit: number;
+}
+
 export interface ChunkRepository {
   /** By ordinal. */
   listByDocument(documentId: string): Promise<Chunk[]>;
+  /** The document's chunks become exactly these. */
+  replaceForDocument(documentId: string, chunks: readonly Chunk[]): Promise<void>;
+  /**
+   * Full-text search over the indexed documents of the libraries: the chunks matching the question,
+   * best first, ties by (documentId, ordinal), at most `limit`. The document's title counts most,
+   * the heading path next, the body last; a chunk holding the question's phrase verbatim scores a
+   * bonus. A question of stop words only matches nothing.
+   */
+  search(query: ChunkSearch): Promise<RetrievedChunk[]>;
 }
 
 export type AgentSort = "name" | "newest";

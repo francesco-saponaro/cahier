@@ -125,6 +125,12 @@ describe("chunkText with headings", () => {
     expect(chunks[0]).toMatchObject({ body: text, headingPath: ["Title", "Sub"] });
   });
 
+  test("a run of headings is still cut at the budget", () => {
+    const chunks = chunkText("# A\n# B\n# C\n# D\n# E", { budget: 4, overlap: 0 });
+    expect(chunks.map((c) => c.body)).toEqual(["# A\n# B", "# C\n# D", "# E"]);
+    expect(chunks.map((c) => c.headingPath)).toEqual([["B"], ["D"], ["E"]]);
+  });
+
   test("a heading line inside a paragraph still counts as a heading", () => {
     const text = "Intro line.\n## Next\nBody line.";
     const chunks = chunkText(text, { budget: 320, overlap: 40 });

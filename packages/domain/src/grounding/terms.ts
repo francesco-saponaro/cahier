@@ -39,15 +39,26 @@ export function stem(word: string): string {
 
 const isWord = (piece: string) => /^[\p{L}\p{N}]/u.test(piece);
 
-/** The words of the question that carry meaning, stemmed, in order of first appearance, without repeats. */
-export function queryTerms(question: string): string[] {
+/** The words of the question that carry meaning, lower-cased, in order of first appearance, without repeats: what the database stems itself. */
+export function queryWords(question: string): string[] {
   const seen = new Set<string>();
-  const terms: string[] = [];
+  const words: string[] = [];
   for (const piece of tokenize(question)) {
     if (!isWord(piece)) continue;
     const lower = piece.toLowerCase();
-    if (lower.length < 2 || isStopWord(lower)) continue;
-    const s = stem(lower);
+    if (lower.length < 2 || isStopWord(lower) || seen.has(lower)) continue;
+    seen.add(lower);
+    words.push(lower);
+  }
+  return words;
+}
+
+/** The same words stemmed, without repeats: what the composer matches sentences against. */
+export function queryTerms(question: string): string[] {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const word of queryWords(question)) {
+    const s = stem(word);
     if (s.length < 2 || seen.has(s)) continue;
     seen.add(s);
     terms.push(s);

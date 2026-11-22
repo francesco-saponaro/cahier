@@ -2,6 +2,8 @@ import { and, asc, count, desc, eq, getTableColumns, gt, ilike, inArray, or, sql
 import {
   decodeCursor,
   encodeCursor,
+  phraseOf,
+  queryWords,
   type AgentRow,
   type AuditRow,
   type ConversationRow,
@@ -10,6 +12,7 @@ import {
   type Page,
   type PageQuery,
   type Ports,
+  type RetrievedChunk,
   type ShareRow,
   type UnitOfWork,
   type UsageTotals,
@@ -179,6 +182,22 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
       findById: (id) => one(db.select().from(schema.libraries).where(eq(schema.libraries.id, id))),
       findBySlug: (workspaceId, slug) => one(db.select().from(schema.libraries).where(and(eq(schema.libraries.workspaceId, workspaceId), eq(schema.libraries.slug, slug)))),
       findMany: (ids) => (ids.length === 0 ? Promise.resolve([]) : db.select().from(schema.libraries).where(inArray(schema.libraries.id, [...ids])).orderBy(asc(schema.libraries.id))),
+      // The SQL twin of `canReadLibrary`: same workspace, and own, shared or the admin's.
+      readableIds: async (actor, ids) => {
+        if (ids.length === 0) return [];
+        const rows = await db
+          .select({ id: schema.libraries.id })
+          .from(schema.libraries)
+          .where(
+            and(
+              inArray(schema.libraries.id, [...ids]),
+              eq(schema.libraries.workspaceId, actor.workspaceId),
+              actor.role === "admin" ? undefined : or(eq(schema.libraries.ownerId, actor.userId), eq(schema.libraries.visibility, "workspace")),
+            ),
+          )
+          .orderBy(sql`${schema.libraries.id} collate "C"`);
+        return rows.map((r) => r.id);
+      },
       list: async (workspaceId, filter) => {
         const key: Key = filter.sort === "name" ? { kind: "text", expr: schema.libraries.name } : { kind: "time", expr: filter.sort === "newest" ? schema.libraries.createdAt : schema.libraries.updatedAt };
         const direction = filter.sort === "name" ? "asc" : "desc";
@@ -235,6 +254,41 @@ export function drizzlePortsCreator(db: Db): { ports: Ports; unitOfWork: UnitOfW
       listByDocument: async (documentId) => {
         const { tsv: _tsv, ...columns } = getTableColumns(schema.chunks);
         return db.select(columns).from(schema.chunks).where(eq(schema.chunks.documentId, documentId)).orderBy(asc(schema.chunks.ordinal));
+      },
+      replaceForDocument: async (documentId, chunks) => {
+        await db.delete(schema.chunks).where(eq(schema.chunks.documentId, documentId));
+        if (chunks.length > 0) await db.insert(schema.chunks).values(chunks.map((c) => ({ ...c })));
+      },
+      search: async ({ libraryIds, question, limit }) => {
+        const words = queryWords(question);
+        if (libraryIds.length === 0 || limit <= 0 || words.length === 0) return [];
+        const phrase = phraseOf(question);
+        // Any of the words, each stemmed by the database: a question has more words than a passage needs to hold.
+        const query = sql`(${sql.join(words.map((w) => sql`plainto_tsquery('english', ${w})`), sql` || `)})`;
+        // The title weighted A on top of the stored vector (heading path B, body D), ranked with cover density normalised to [0, 1).
+        const vector = sql`(setweight(to_tsvector('english', ${schema.documents.title}), 'A') || ${schema.chunks.tsv})`;
+        const bonus = phrase ? sql`(case when ${schema.chunks.body} ilike ${`%${escapeLike(phrase)}%`} then 0.5 else 0 end)` : sql`0`;
+        const score = sql`ts_rank_cd(${vector}, ${query}, 32) + ${bonus}`;
+        const rows = await db
+          .select({
+            chunkId: schema.chunks.id,
+            documentId: schema.chunks.documentId,
+            documentTitle: schema.documents.title,
+            documentVersion: schema.documents.version,
+            ordinal: schema.chunks.ordinal,
+            headingPath: schema.chunks.headingPath,
+            startChar: schema.chunks.startChar,
+            endChar: schema.chunks.endChar,
+            tokenCount: schema.chunks.tokenCount,
+            body: schema.chunks.body,
+            score: num(score),
+          })
+          .from(schema.chunks)
+          .innerJoin(schema.documents, eq(schema.documents.id, schema.chunks.documentId))
+          .where(and(inArray(schema.documents.libraryId, [...libraryIds]), eq(schema.documents.status, "indexed"), sql`${vector} @@ ${query}`))
+          .orderBy(desc(score), asc(schema.chunks.documentId), asc(schema.chunks.ordinal))
+          .limit(limit);
+        return rows satisfies RetrievedChunk[];
       },
     },
     agents: {

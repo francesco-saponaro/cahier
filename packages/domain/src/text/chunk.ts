@@ -132,8 +132,8 @@ export function chunkText(text: string, options: ChunkOptions = DEFAULT_CHUNK_OP
   for (const unit of units(text, budget)) {
     if (unit.heading) {
       path = [...path.slice(0, unit.heading.level - 1), unit.heading.text];
-      // A heading opens a new chunk, unless the current one holds nothing but headings.
-      if (!current.every((u) => u.heading)) {
+      // A heading opens a new chunk, unless the current one holds nothing but headings and has room.
+      if (!current.every((u) => u.heading) || currentTokens + unit.tokens > budget) {
         emit(current, chunkPath);
         open([], path);
       }

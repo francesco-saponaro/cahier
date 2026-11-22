@@ -344,6 +344,48 @@ export function portContract(name: string, create: (data: Fixture) => Promise<Po
         expect((await p.documents.list("lib_handbook", { limit: 2, cursor: page.nextCursor, sort: "title" })).items.map((d) => d.id)).toEqual(["doc_leave"]);
       });
 
+      it("answers the subset of library ids the actor may read: own, shared, or any in an admin's workspace", async () => {
+        const ids = ["lib_handbook", "lib_runbooks", "lib_drafts", "lib_field", "lib_manual", "lib_none"];
+        expect(await p.libraries.readableIds({ userId: "usr_lea", workspaceId: "ws_oriel", role: "member" }, ids)).toEqual(["lib_drafts", "lib_handbook", "lib_runbooks"]);
+        expect(await p.libraries.readableIds({ userId: "usr_tom", workspaceId: "ws_oriel", role: "member" }, ids)).toEqual(["lib_field", "lib_handbook", "lib_runbooks"]);
+        expect(await p.libraries.readableIds({ userId: "usr_noor", workspaceId: "ws_oriel", role: "admin" }, ids)).toEqual(["lib_drafts", "lib_field", "lib_handbook", "lib_runbooks"]);
+        expect(await p.libraries.readableIds({ userId: "usr_bob", workspaceId: "ws_brindille", role: "admin" }, ids)).toEqual(["lib_manual"]);
+        expect(await p.libraries.readableIds({ userId: "usr_lea", workspaceId: "ws_oriel", role: "member" }, [])).toEqual([]);
+      });
+
+      it("searches the indexed documents of the given libraries, best first, with the document's title and version", async () => {
+        const hits = await p.chunks.search({ libraryIds: ["lib_handbook", "lib_drafts"], question: "How many days do I earn?", limit: 10 });
+        expect(hits.map((h) => h.chunkId)).toEqual(["chk_1"]);
+        expect(hits[0]).toMatchObject({ documentId: "doc_leave", documentTitle: "Leave", documentVersion: 1, ordinal: 0, startChar: 0, endChar: 31, tokenCount: 8, headingPath: ["Leave"] });
+        expect(hits[0]!.score).toBeGreaterThan(0);
+        expect((await p.chunks.search({ libraryIds: ["lib_handbook"], question: "receipt", limit: 10 })).map((h) => h.chunkId)).toEqual(["chk_2"]);
+        // The title counts: both chunks of "Expenses" match a question about expenses.
+        expect((await p.chunks.search({ libraryIds: ["lib_handbook"], question: "expenses", limit: 10 })).map((h) => h.chunkId).sort()).toEqual(["chk_2", "chk_3"]);
+        expect(await p.chunks.search({ libraryIds: ["lib_handbook"], question: "expenses", limit: 1 })).toHaveLength(1);
+      });
+
+      it("finds nothing for a question of stop words, for another library, or for a document that is not indexed", async () => {
+        expect(await p.chunks.search({ libraryIds: ["lib_handbook"], question: "What is it?", limit: 10 })).toEqual([]);
+        expect(await p.chunks.search({ libraryIds: ["lib_runbooks"], question: "days", limit: 10 })).toEqual([]);
+        expect(await p.chunks.search({ libraryIds: [], question: "days", limit: 10 })).toEqual([]);
+        const draft = (await p.documents.findById("doc_draft"))!;
+        await p.chunks.replaceForDocument("doc_draft", [{ id: "chk_draft", documentId: "doc_draft", ordinal: 0, headingPath: ["Draft"], headingText: "Draft", startChar: 0, endChar: draft.body.length, tokenCount: 4, body: draft.body }]);
+        expect(await p.chunks.search({ libraryIds: ["lib_drafts"], question: "soon", limit: 10 })).toEqual([]);
+        await p.documents.update({ ...draft, status: "indexed", indexedAt: day(3) });
+        expect((await p.chunks.search({ libraryIds: ["lib_drafts"], question: "soon", limit: 10 })).map((h) => h.chunkId)).toEqual(["chk_draft"]);
+        await p.documents.update(draft);
+      });
+
+      it("replaces a document's chunks", async () => {
+        await p.chunks.replaceForDocument("doc_draft", [
+          { id: "chk_d1", documentId: "doc_draft", ordinal: 0, headingPath: [], headingText: "", startChar: 0, endChar: 7, tokenCount: 2, body: "# Draft" },
+          { id: "chk_d2", documentId: "doc_draft", ordinal: 1, headingPath: ["Draft"], headingText: "Draft", startChar: 9, endChar: 14, tokenCount: 2, body: "Soon." },
+        ]);
+        expect((await p.chunks.listByDocument("doc_draft")).map((c) => c.id)).toEqual(["chk_d1", "chk_d2"]);
+        await p.chunks.replaceForDocument("doc_draft", []);
+        expect(await p.chunks.listByDocument("doc_draft")).toEqual([]);
+      });
+
       it("lists a document's chunks in order, and deleting the document keeps the citation's quote", async () => {
         expect((await p.chunks.listByDocument("doc_expenses")).map((c) => c.ordinal)).toEqual([0, 1]);
         const doc = (await p.documents.findById("doc_leave"))!;

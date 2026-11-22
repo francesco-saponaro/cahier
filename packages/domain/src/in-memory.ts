@@ -25,6 +25,10 @@ import type {
 } from "./entities.js";
 import type { PriceKind } from "./money.js";
 import type { Ports, UnitOfWork, UsageGroup, UsageTotals } from "./ports.js";
+import type { RetrievedChunk } from "./grounding/pack.js";
+import { phraseOf, queryTerms, stem } from "./grounding/terms.js";
+import { tokenize } from "./text/tokens.js";
+import { canReadLibrary } from "./access.js";
 
 /*
  * The ports over arrays. The default adapter in a use-case test, and what the app's component
@@ -174,6 +178,11 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
       findById: async (id) => store.libraries.find((l) => l.id === id) ?? null,
       findBySlug: async (workspaceId, slug) => store.libraries.find((l) => l.workspaceId === workspaceId && l.slug === slug) ?? null,
       findMany: async (ids) => store.libraries.filter((l) => ids.includes(l.id)).sort(byId),
+      readableIds: async (actor, ids) =>
+        store.libraries
+          .filter((l) => ids.includes(l.id) && canReadLibrary(actor, l))
+          .map((l) => l.id)
+          .sort(),
       list: async (workspaceId, filter) => {
         const rows = store.libraries
           .filter((l) => l.workspaceId === workspaceId && libraryVisible(filter.userId, filter.scope)(l) && has(l.name, filter.q))
@@ -215,6 +224,32 @@ export function inMemoryPortsCreator(store: MemoryStore = emptyStore()): { ports
     },
     chunks: {
       listByDocument: async (documentId) => store.chunks.filter((c) => c.documentId === documentId).sort((a, b) => a.ordinal - b.ordinal),
+      replaceForDocument: async (documentId, chunks) => {
+        store.chunks = [...store.chunks.filter((c) => c.documentId !== documentId), ...chunks.map((c) => ({ ...c }))];
+      },
+      search: async ({ libraryIds, question, limit }) => {
+        const terms = queryTerms(question);
+        if (terms.length === 0 || libraryIds.length === 0 || limit <= 0) return [];
+        const phrase = phraseOf(question)?.toLowerCase() ?? null;
+        const documents = new Map(store.documents.filter((d) => libraryIds.includes(d.libraryId) && d.status === "indexed").map((d) => [d.id, d]));
+        const stems = (text: string) => new Set(tokenize(text).filter((p) => /^[\p{L}\p{N}]/u.test(p)).map((w) => stem(w)));
+        const hits: RetrievedChunk[] = [];
+        for (const c of store.chunks) {
+          const d = documents.get(c.documentId);
+          if (!d) continue;
+          // The weights of the search vector: the title A, the heading path B, the body D.
+          const weighted: [Set<string>, number][] = [[stems(d.title), 1], [stems(c.headingText), 0.4], [stems(c.body), 0.1]];
+          let score = 0;
+          for (const t of terms) {
+            const best = weighted.find(([s]) => s.has(t));
+            if (best) score += best[1];
+          }
+          if (score === 0) continue;
+          score = score / (score + 1) + (phrase && c.body.toLowerCase().includes(phrase) ? 0.5 : 0);
+          hits.push({ chunkId: c.id, documentId: c.documentId, documentTitle: d.title, documentVersion: d.version, ordinal: c.ordinal, headingPath: c.headingPath, startChar: c.startChar, endChar: c.endChar, tokenCount: c.tokenCount, body: c.body, score });
+        }
+        return hits.sort((a, b) => b.score - a.score || (a.documentId < b.documentId ? -1 : a.documentId > b.documentId ? 1 : 0) || a.ordinal - b.ordinal).slice(0, limit);
+      },
     },
     agents: {
       findById: async (id) => store.agents.find((a) => a.id === id) ?? null,

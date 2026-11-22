@@ -20,9 +20,9 @@ describe("the extractive answerer", () => {
     const result = await compose("How many days of paid leave do I earn?", [chunk("c1", "Leave", LEAVE, 0.9), chunk("c2", "Sick", SICK, 0.4)]);
     expect(result.kind).toBe("answer");
     if (result.kind !== "answer") return;
-    const paragraph = LEAVE.slice(LEAVE.indexOf("Everyone"));
-    expect(result.text.split("\n")[0]).toBe(`${paragraph} [1]`);
-    expect(result.citations[0]).toMatchObject({ index: 1, chunkId: "c1", documentId: "Leave", startChar: LEAVE.indexOf("Everyone"), endChar: LEAVE.length, quote: paragraph });
+    const quoted = LEAVE.slice(LEAVE.indexOf("Everyone"), LEAVE.indexOf(" Up to five"));
+    expect(result.text.split("\n")[0]).toBe(`${quoted} [1]`);
+    expect(result.citations[0]).toMatchObject({ index: 1, chunkId: "c1", documentId: "Leave", startChar: LEAVE.indexOf("Everyone"), endChar: LEAVE.indexOf(" Up to five"), quote: quoted });
   });
 
   test("a citation's quote is the document's text at its span", async () => {
@@ -41,6 +41,15 @@ describe("the extractive answerer", () => {
     const lines = result.text.split("\n").map((l) => l.replace(/ \[\d+\]$/, ""));
     expect(lines).toEqual(["Meals are capped at 25 euros a day.", "Taxis need a reason on the claim."]);
     expect(result.citations.map((c) => c.quote)).toEqual(lines);
+  });
+
+  test("a sentence covering far fewer terms than the best one is left out, so the answer is not padded", async () => {
+    const result = await compose("How many days of paid leave do I earn?", [chunk("c1", "Leave", LEAVE, 0.9), chunk("c2", "Sick", SICK, 0.4)]);
+    if (result.kind !== "answer") throw new Error(result.kind);
+    // "Up to five days can be carried into the next period." covers one term of five; the best covers four.
+    expect(result.text).not.toContain("Up to five days");
+    expect(result.text).not.toContain("90 days a year");
+    expect(result.citations).toHaveLength(1);
   });
 
   test("refuses with no_sources when no sentence covers a term of the question", async () => {

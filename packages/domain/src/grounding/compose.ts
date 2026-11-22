@@ -8,8 +8,9 @@ import { queryTerms, stem } from "./terms.js";
  * Composition: the answer, built from the packed chunks. It sits behind the `Answerer` port
  * because a real model would go there: given the question, the instructions and the passages,
  * answer with text whose every line ends in a citation. The adapter here is extractive and
- * deterministic: it quotes the sentences that cover the most terms of the question, in reading
- * order, each as one line with its `[n]`, and every citation is a span of the document whose
+ * deterministic: it quotes the sentences that cover the most terms of the question (and none
+ * covering less than half of what the best one does), in reading order, each as one line with
+ * its `[n]`, and every citation is a span of the document whose
  * quote is exactly `document.slice(start, end)`. Nothing is paraphrased, so nothing is invented.
  */
 
@@ -99,10 +100,13 @@ export function extractiveAnswerer(options: ExtractiveOptions = {}): Answerer {
       if (candidates.length === 0) return { kind: "no_sources" };
 
       // Greedy by terms covered, then by the chunk's rank, then by position, until the answer budget is spent.
+      // A sentence covering less than half of what the best one covers is padding, not an answer.
       candidates.sort((a, b) => b.covered - a.covered || a.rank - b.rank || a.start - b.start);
+      const threshold = Math.max(1, Math.ceil(candidates[0]!.covered / 2));
       const chosen: Candidate[] = [];
       let used = 0;
       for (const c of candidates) {
+        if (c.covered < threshold) break;
         if (chosen.length > 0 && used + c.tokens > answerTokens) continue;
         chosen.push(c);
         used += c.tokens;

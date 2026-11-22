@@ -30,3 +30,6 @@ export { canAdmin, canManageAgent, canManageLibrary, canReadAgent, canReadLibrar
 export { dayOf, isMonth, monthOf, monthStart, nextMonth } from "./time.js";
 export * from "./use-cases/index.js";
 export { isTimeZone, nextOccurrence, type ScheduleShape } from "./schedule.js";
+export { isStopWord, phraseOf, queryTerms, stem } from "./grounding/terms.js";
+export { byRank, packContext, type PackOptions, type RetrievedChunk } from "./grounding/pack.js";
+export { REFUSALS, extractiveAnswerer, type Answerer, type CitationDraft, type ComposeRequest, type Composition, type ExtractiveOptions } from "./grounding/compose.js";

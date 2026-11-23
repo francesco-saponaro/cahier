@@ -40,9 +40,9 @@ export function SignInScreen() {
           <span style={{ fontWeight: 600, fontSize: 18 }}>Cahier</span>
         </div>
         <div>
-          <h1>Answers from your team&apos;s own documents, with the page they came from.</h1>
+          <h1>Answers from your documents, cited to the page.</h1>
           <p className="muted" style={{ marginTop: 12, maxWidth: 440 }}>
-            Keep libraries of handbooks, policies and notes, build agents that read some of them, and ask. Every line of an answer carries a citation that opens the page at the exact passage.
+            Keep libraries of handbooks, policies and notes, build agents that read some of them, and ask. Every line of an answer carries a citation that opens the page at the exact passage, and the whole workspace runs on one token budget.
           </p>
         </div>
         <p className="muted small">The demo workspace is Oriel, a fictional company; its documents and people are made up.</p>

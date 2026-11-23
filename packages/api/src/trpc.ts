@@ -62,6 +62,9 @@ export function formatError({ shape, error }: { shape: { message: string; code: 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter: formatError,
+  // The router runs in the browser too: the demo calls it in-process on PGlite, and the web app
+  // imports the input schemas from this package (decisions 0001 and 0005).
+  allowOutsideOfServer: true,
 });
 
 export const router = t.router;

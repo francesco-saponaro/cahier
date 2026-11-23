@@ -68,9 +68,7 @@ export function SignInForm({ onSubmit }: { onSubmit: (values: SignInValues) => P
               <Initial id={a.id} name={a.name} large />
               <span>
                 <span className="name">{a.name}</span>
-                <span className="sub">
-                  {a.email} · {a.role}
-                </span>
+                <span className="sub">{a.role}</span>
               </span>
             </button>
           ))}

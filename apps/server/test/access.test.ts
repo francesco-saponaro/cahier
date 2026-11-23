@@ -55,6 +55,7 @@ describe("who may call what", () => {
     expect(await codeOf(anonymous.conversations.list.query({ status: "active" }))).toBe("UNAUTHORIZED");
     expect(await codeOf(anonymous.libraries.list.query({ scope: "own", sort: "name" }))).toBe("UNAUTHORIZED");
     expect(await codeOf(anonymous.agents.get.query({ id: ids.helper }))).toBe("UNAUTHORIZED");
+    expect(await codeOf(anonymous.agents.models.query())).toBe("UNAUTHORIZED");
     expect(await codeOf(anonymous.admin.usage.report.query({ month: "2026-11" }))).toBe("UNAUTHORIZED");
     expect(await codeOf(server.clientFor("not-a-token").auth.me.query())).toBe("UNAUTHORIZED");
   });
@@ -67,6 +68,10 @@ describe("who may call what", () => {
     expect(await codeOf(lea.libraries.get.query({ id: ids.fieldNotes }))).toBe("NOT_FOUND");
     expect(await codeOf(lea.documents.list.query({ libraryId: ids.fieldNotes, sort: "title" }))).toBe("NOT_FOUND");
     expect((await tom.libraries.get.query({ id: ids.fieldNotes })).ownerName).toBe("Tom Delaunay");
+    // The builder's model list: the seed's enabled models with a price in force for every kind.
+    const models = await lea.agents.models.query();
+    expect(models.map((m) => m.name)).toEqual(["Code 1", "Large 4", "Mini 14B", "Mini 8B", "Small 4"]);
+    expect(models.every((m) => m.prices.input !== null && m.prices.cached_input !== null && m.prices.output !== null)).toBe(true);
   });
 
   test("a member is kept out of the admin procedures, and out of changing a colleague's things", async () => {

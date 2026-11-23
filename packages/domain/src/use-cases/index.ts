@@ -20,7 +20,7 @@ export { membersUseCasesCreator, type InviteInput } from "./members.js";
 export { RETENTION_RANGE, settingsUseCasesCreator, type BudgetInput, type Settings, type SettingsUpdate } from "./settings.js";
 export { usageUseCasesCreator, type MyUsage, type UsageReport } from "./usage.js";
 export { DESCRIPTION_MAX, NAME_MAX, cleanName, freshSlug, librariesUseCasesCreator, slugify, type LibraryInput } from "./libraries.js";
-export { CONTEXT_MIN, INSTRUCTIONS_MAX, agentsUseCasesCreator, type VersionInput, type VersionWithLibraries } from "./agents.js";
+export { CONTEXT_MIN, INSTRUCTIONS_MAX, agentsUseCasesCreator, type ModelChoice, type VersionInput, type VersionWithLibraries } from "./agents.js";
 export { sharesUseCasesCreator, type InboxRow, type SubjectRef } from "./shares.js";
 export { TITLE_MAX, conversationsUseCasesCreator } from "./conversations.js";
 export { PROMPT_MAX, checkSchedule, schedulesUseCasesCreator, type ScheduleInput } from "./schedules.js";

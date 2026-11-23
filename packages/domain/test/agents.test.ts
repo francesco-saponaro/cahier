@@ -81,3 +81,17 @@ describe("agents", () => {
     expect(failure(await useCases.agents.publish(NOOR, "agv_h2")).reason).toBe("agent_archived");
   });
 });
+
+describe("models", () => {
+  test("a member lists the enabled models with the prices in force now, by name", async () => {
+    const { useCases } = world();
+    const models = unwrap(await useCases.agents.models(LEA));
+    expect(models.map((m) => [m.id, m.name, m.contextTokens])).toEqual([
+      ["large-4", "Large 4", 128000],
+      ["small-4", "Small 4", 128000],
+    ]);
+    // Large 4's input price changed on day 0; the one in force at NOW is the newer one, and it has no other prices.
+    expect(models[0]?.prices).toEqual({ input: 700, cached_input: null, output: null });
+    expect(models[1]?.prices).toEqual({ input: 150, cached_input: 15, output: 600 });
+  });
+});

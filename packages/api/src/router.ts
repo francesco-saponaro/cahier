@@ -62,6 +62,7 @@ const documents = router({
 });
 
 const agents = router({
+  models: memberProcedure.query(async ({ ctx }) => unwrap(await ctx.useCases.agents.models(ctx.actor))),
   list: memberProcedure.input(inputs.agentList).query(async ({ ctx, input }) => unwrap(await ctx.useCases.agents.list(ctx.actor, { ...pageQuery(input), scope: input.scope, q: input.q, sort: input.sort }))),
   get: memberProcedure.input(inputs.byId).query(async ({ ctx, input }) => unwrap(await ctx.useCases.agents.get(ctx.actor, input.id))),
   create: memberProcedure.input(inputs.versionFields).mutation(async ({ ctx, input }) => unwrap(await ctx.useCases.agents.create(ctx.actor, input))),

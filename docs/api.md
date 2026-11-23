@@ -81,6 +81,7 @@ What `send` does, in order: writes the user message and titles a new conversatio
 
 | Procedure | Kind | Auth | Input | Answers |
 | --- | --- | --- | --- | --- |
+| `agents.models` | query | member | none | The enabled models by name, each with `prices` (`input`, `cached_input`, `output` in micro-dollars per thousand tokens, in force now; null where none is): what the builder offers. |
 | `agents.list` | query | member | `{ scope, q?, sort: name \| newest, limit?, cursor? }` | A page of agents with `ownerName`, `currentVersion`, `versionCount`. |
 | `agents.get` | query | member | `{ id }` | `{ agent, ownerName, versions: [...with libraryIds], pendingShare }` |
 | `agents.create` | mutation | member | `{ name, description, instructions, modelId, maxContextTokens, libraryIds }` | `{ agent, version }`: a private active agent with version 1 as a draft. The model must exist and be enabled, the budget between 512 and the model's context, every library one the caller may read (`FORBIDDEN` otherwise). |

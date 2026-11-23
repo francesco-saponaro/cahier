@@ -1,5 +1,6 @@
-import type { Actor, Agent, AgentVersion, ShareRequest } from "../entities.js";
+import type { Actor, Agent, AgentVersion, Model, ShareRequest } from "../entities.js";
 import type { Page } from "../cursor.js";
+import { priceInForce, type PriceKind } from "../money.js";
 import type { AgentFilter, AgentRow, Deps, Ports } from "../ports.js";
 import { fail, forbidden, invalid, notFound, ok, type Result } from "../result.js";
 import { agentTransitions, agentVersionTransitions, move } from "../transitions.js";
@@ -28,6 +29,11 @@ export interface VersionInput {
 }
 
 export type VersionWithLibraries = AgentVersion & { libraryIds: string[] };
+
+/** A model the builder may choose, with its prices in force now (null where none is). */
+export type ModelChoice = Model & { prices: Record<PriceKind, number | null> };
+
+const PRICE_KINDS: readonly PriceKind[] = ["input", "cached_input", "output"];
 
 export function agentsUseCasesCreator(deps: Deps) {
   const { ports, unitOfWork, clock, ids } = deps;
@@ -90,6 +96,18 @@ export function agentsUseCasesCreator(deps: Deps) {
   }
 
   return {
+    /** The enabled models, by name, each with the price in force at this moment per kind; what the builder offers. */
+    async models(_actor: Actor): Promise<Result<ModelChoice[]>> {
+      const now = clock.now();
+      const [models, prices] = await Promise.all([ports.models.list(), ports.models.prices()]);
+      return ok(
+        models
+          .filter((m) => m.enabled)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((m) => ({ ...m, prices: Object.fromEntries(PRICE_KINDS.map((k) => [k, priceInForce(prices, m.id, k, now)?.microsPer1k ?? null])) as Record<PriceKind, number | null> })),
+      );
+    },
+
     async list(actor: Actor, filter: Omit<AgentFilter, "userId">): Promise<Result<Page<AgentRow>>> {
       if (filter.scope === "all" && !canAdmin(actor, actor.workspaceId)) return forbidden("only an admin lists every agent");
       return ok(await ports.agents.list(actor.workspaceId, { ...filter, userId: actor.userId }));

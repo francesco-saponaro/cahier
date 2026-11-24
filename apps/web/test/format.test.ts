@@ -16,6 +16,8 @@ describe("formats", () => {
 
   test("a date and time in full", () => {
     expect(when(new Date("2026-09-14T09:05:00Z"), "UTC")).toBe("14 Sep 2026, 09:05");
+    expect(when(new Date("2026-10-31T22:00:00Z"), "UTC")).toBe("31 Oct 2026, 22:00");
+    expect(when(new Date("2026-08-01T00:00:00Z"), "UTC")).toBe("1 Aug 2026, 00:00");
   });
 
   test("counts with separators, tokens with a unit, dollars from micro-dollars", () => {

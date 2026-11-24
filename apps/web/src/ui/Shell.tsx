@@ -15,15 +15,28 @@ import { Mark } from "./Mark";
  * a bottom bar of the same destinations with short labels.
  */
 
-const DESTINATIONS = [
-  { href: "/chat", label: "Chat", icon: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-5 4v-4A2.5 2.5 0 0 1 4 13.5v-8Z" /> },
-  { href: "/libraries", label: "Libraries", icon: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l4-1 2 15-4 1z" /> },
-  { href: "/agents", label: "Agents", icon: <><rect x="4" y="7" width="16" height="12" rx="2" /><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6" /></> },
+interface Destination {
+  href: string;
+  /** What marks it current: the route itself, or a whole area of routes. */
+  area: string;
+  label: string;
+  admin?: boolean;
+  icon: ReactNode;
+}
+
+const DESTINATIONS: Destination[] = [
+  { href: "/chat", area: "/chat", label: "Chat", icon: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-5 4v-4A2.5 2.5 0 0 1 4 13.5v-8Z" /> },
+  { href: "/libraries", area: "/libraries", label: "Libraries", icon: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l4-1 2 15-4 1z" /> },
+  { href: "/agents", area: "/agents", label: "Agents", icon: <><rect x="4" y="7" width="16" height="12" rx="2" /><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6" /></> },
+  { href: "/schedules", area: "/schedules", label: "Schedules", icon: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></> },
+  { href: "/admin/usage", area: "/admin", label: "Admin", admin: true, icon: <><path d="M4 19h16" /><path d="M7 16V10M12 16V5M17 16v-4" /></> },
 ];
 
 export function Shell({ title, children }: { title: string; children: ReactNode }) {
   const pathname = usePathname();
-  const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined);
+  const { session } = useSession();
+  const destinations = DESTINATIONS.filter((d) => !d.admin || session?.role === "admin");
+  const current = (area: string) => (pathname === area || pathname.startsWith(`${area}/`) ? "page" : undefined);
   return (
     <div className="app">
       <aside className="rail">
@@ -31,8 +44,8 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
           <Mark size={24} />
         </Link>
         <nav aria-label="Main">
-          {DESTINATIONS.map((d) => (
-            <Link key={d.href} href={d.href} className="rail-item" aria-current={current(d.href)} aria-label={d.label} data-tip={d.label}>
+          {destinations.map((d) => (
+            <Link key={d.href} href={d.href} className="rail-item" aria-current={current(d.area)} aria-label={d.label} data-tip={d.label}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 {d.icon}
               </svg>
@@ -53,8 +66,8 @@ export function Shell({ title, children }: { title: string; children: ReactNode 
         </header>
         {children}
         <nav className="tabbar" aria-label="Main">
-          {DESTINATIONS.map((d) => (
-            <Link key={d.href} href={d.href} className="rail-item" aria-current={current(d.href)}>
+          {destinations.map((d) => (
+            <Link key={d.href} href={d.href} className="rail-item" aria-current={current(d.area)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 {d.icon}
               </svg>

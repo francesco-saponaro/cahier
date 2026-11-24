@@ -23,7 +23,8 @@ export function ago(at: Date, now: Date = new Date()): string {
 export function when(at: Date, timeZone?: string): string {
   const parts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, ...(timeZone ? { timeZone } : {}) }).formatToParts(at);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("day")} ${get("month").replace(/t$/, "")} ${get("year")}, ${get("hour")}:${get("minute")}`;
+  // en-GB writes "Sept"; every other month is already three letters.
+  return `${get("day")} ${get("month").replace(/^Sept$/, "Sep")} ${get("year")}, ${get("hour")}:${get("minute")}`;
 }
 
 export const count = (n: number): string => n.toLocaleString("en-US");

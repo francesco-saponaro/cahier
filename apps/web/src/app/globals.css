@@ -260,6 +260,45 @@ a.cite:hover { background: var(--accent); color: #fff; }
 .version .sub { color: var(--muted); font-size: var(--fs-small); line-height: 16px; }
 .docfile { display: flex; align-items: center; gap: 12px; }
 
+/* ---------- the admin: five areas on one tab rule, the usage dashboard, the settings ---------- */
+.admin-tabs { margin-bottom: 20px; }
+.admin-tabs a { display: inline-flex; align-items: center; }
+/* KPIs: one container split by dividers, label over value, the answer figure larger */
+.kpi-strip { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); }
+.kpi { display: grid; gap: 4px; padding: 0 20px; border-left: 1px solid var(--rule); }
+.kpi:first-child { padding-left: 0; border-left: 0; }
+.kpi .label { color: var(--muted); }
+.kpi .value { font-size: 24px; line-height: 32px; font-variant-numeric: tabular-nums; }
+.kpi.lead .value { font-size: 32px; line-height: 40px; font-weight: 500; }
+/* the budget as a track as long as the limit, the spent part filled in the one hue */
+.plan { margin-top: 20px; }
+.plan .track { height: 8px; border-radius: 999px; background: var(--raised); overflow: hidden; }
+.plan .spent { height: 100%; background: var(--accent); }
+.plan .ends { display: flex; justify-content: space-between; margin-top: 6px; }
+.usage-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); align-items: start; }
+/* the models' shares of the month as one bar with 2px seams, neutral tones, the key under it */
+.share { margin-top: 16px; }
+.share-bar { display: flex; gap: 2px; height: 10px; }
+.share-bar > div { min-width: 2px; }
+.share-key { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 8px; }
+.share-key i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+/* a ranked list: label and figure on one line, a thin proportional bar, the tokens under */
+.ranked { display: grid; gap: 2px; }
+.ranked li { padding: 8px 0; }
+.ranked li + li { border-top: 1px solid var(--rule); }
+.ranked .line { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.ranked .line .name { min-width: 0; }
+.ranked .bar { height: 3px; margin: 6px 0 4px; background: transparent; }
+.ranked .bar > div { height: 100%; border-radius: 2px; }
+.ranked .sub { color: var(--muted); font-size: var(--fs-small); line-height: 16px; }
+/* settings: a label column beside its panel, sections split by a rule */
+.settings { display: grid; gap: 0; }
+.setting { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 32px; padding: 28px 0; border-top: 1px solid var(--border); }
+.setting:first-child { border-top: 0; padding-top: 0; }
+.setting .about h2 { font-size: var(--fs-section); font-weight: 600; margin-bottom: 8px; }
+.panel.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.small-title { font-size: var(--fs-body); font-weight: 600; margin-bottom: 8px; }
+
 /* ---------- phone and tablet: the rail folds into a top bar and a bottom bar ---------- */
 @media (max-width: 900px) {
   :root { --pad: 16px; }
@@ -290,6 +329,15 @@ a.cite:hover { background: var(--accent); color: #fff; }
   .viewer .page-text { padding: 20px 16px 20px 36px; }
   .form-grid .row { grid-template-columns: minmax(0, 1fr); }
   .title-row { flex-wrap: wrap; align-items: flex-start; }
+  .admin-tabs { overflow-x: auto; gap: 20px; white-space: nowrap; }
+  .kpi-strip { grid-template-columns: 1fr 1fr; gap: 12px 0; }
+  .kpi { border-left: 0; padding: 0; }
+  .kpi:nth-child(even) { padding-right: 12px; }
+  .kpi:nth-child(odd) { padding-left: 12px; border-left: 1px solid var(--rule); }
+  .kpi.lead { grid-column: 1 / -1; padding: 0; border-left: 0; }
+  .usage-row { grid-template-columns: minmax(0, 1fr); }
+  .setting { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .panel.split { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .gate { grid-template-columns: minmax(0, 1fr); }
   .gate .side { padding: 24px 20px; border-right: 0; border-bottom: 1px solid var(--border); gap: 24px; }
   .gate .sheet { padding: 24px 20px 40px; align-items: start; }

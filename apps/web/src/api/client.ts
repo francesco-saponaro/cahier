@@ -1,14 +1,14 @@
-import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink, TRPCClientError, type TRPCLink } from "@trpc/client";
-import { observable } from "@trpc/server/observable";
+import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink, type TRPCLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "@cahier/api";
+import { demoLinksFor } from "../demo";
 
 /*
  * The tRPC client: the batch link for queries and mutations with the bearer header, and the
  * subscription link (server-sent events, the browser's own EventSource) for `messages.send`
  * with the token in the connection params, since an EventSource cannot send a header. The links
- * are a function of the API's URL and the token, so the demo can swap in a link that calls the
- * router in-process instead.
+ * are a function of the API's URL and the token; with no URL the demo's link calls the router
+ * in-process on PostgreSQL in the page, and nothing above this file can tell the difference.
  */
 
 export type ApiClient = ReturnType<typeof createTRPCClient<AppRouter>>;
@@ -29,24 +29,16 @@ export function httpLinks({ url, token }: HttpOptions): ApiLinks {
   ];
 }
 
-/** With no API configured and no demo yet, every call answers the same explanation. */
-export function unavailableLinks(reason: string): ApiLinks {
-  return [
-    () => () =>
-      observable((observer) => {
-        observer.error(new TRPCClientError(reason));
-      }),
-  ];
-}
-
 export function createApiClient(links: ApiLinks): ApiClient {
   return createTRPCClient<AppRouter>({ links });
 }
 
-/** The API's URL from the environment; empty means the demo (session five) or nothing. */
+/** The API's URL from the environment; empty means the demo. */
 export const API_URL: string = process.env["NEXT_PUBLIC_API_URL"] ?? "";
 
+/** True when the app runs on its own, with the database in the page. */
+export const IS_DEMO: boolean = API_URL === "";
+
 export function linksFor(token: string | null): ApiLinks {
-  if (API_URL) return httpLinks({ url: API_URL, token });
-  return unavailableLinks("Demo mode is not available yet. Set NEXT_PUBLIC_API_URL to the server's URL.");
+  return IS_DEMO ? demoLinksFor(token) : httpLinks({ url: API_URL, token });
 }

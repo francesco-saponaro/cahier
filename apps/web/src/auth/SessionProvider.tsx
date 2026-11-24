@@ -3,9 +3,10 @@
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { SignedIn } from "@cahier/domain";
-import { createApiClient, linksFor } from "../api/client";
+import { createApiClient, IS_DEMO, linksFor } from "../api/client";
 import { isUnauthorized } from "../api/errors";
 import { TRPCProvider } from "../api/trpc";
+import { demo } from "../demo";
 import { browserStorage, clearSession, readSession, writeSession, type StoredSession } from "./session";
 
 /*
@@ -44,6 +45,11 @@ export function SessionProvider({ children, initial }: { children: ReactNode; in
     if (initial !== undefined) return;
     setSession(readSession(browserStorage(), new Date()));
     setReady(true);
+  }, [initial]);
+
+  // The demo's database starts loading as soon as the page opens, not at the first call.
+  useEffect(() => {
+    if (IS_DEMO && initial === undefined) demo.database().catch(() => undefined);
   }, [initial]);
 
   const drop = useCallback(() => {

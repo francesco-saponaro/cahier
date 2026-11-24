@@ -30,7 +30,8 @@ export function InboxScreen() {
   const [status, setStatus] = useState<"requested" | "all">("requested");
   const [declining, setDeclining] = useState<{ id: string; reason: string } | null>(null);
   const query = useInfiniteQuery(trpc.admin.shares.inbox.infiniteQueryOptions({ status: status === "all" ? undefined : status, limit: 30 }, { getNextPageParam: (last) => last.nextCursor }));
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: trpc.admin.shares.pathKey() });
+  // An approval changes what every list shows (the thing is shared now), so everything is refetched.
+  const refresh = () => void queryClient.invalidateQueries();
   const approve = useMutation({ mutationFn: (id: string) => client.shares.approve.mutate({ id }), onSuccess: refresh });
   const decline = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => client.shares.decline.mutate({ id, reason }),

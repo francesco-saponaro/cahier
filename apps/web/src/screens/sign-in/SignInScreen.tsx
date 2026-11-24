@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { IS_DEMO } from "../../api/client";
 import { useTRPCClient } from "../../api/trpc";
 import { describe } from "../../api/errors";
@@ -9,12 +9,14 @@ import { useSession } from "../../auth/SessionProvider";
 import { homeFor } from "../../auth/session";
 import { useDemoStatus } from "../../demo";
 import { Mark } from "../../ui/Mark";
+import { JoinForm, type JoinValues } from "./JoinForm";
 import { SignInForm, type SignInValues } from "./SignInForm";
 
 export function SignInScreen() {
   const client = useTRPCClient();
   const { session, ready, signIn } = useSession();
   const router = useRouter();
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     if (ready && session) router.replace(homeFor(session.role));
@@ -30,6 +32,21 @@ export function SignInScreen() {
       const failure = describe(error);
       if (failure.code === "UNAUTHORIZED") return "Wrong email or password.";
       if (failure.code === "TOO_MANY_REQUESTS") return "Too many attempts from this address. Wait a minute and try again.";
+      return failure.message;
+    }
+  }
+
+  async function join(values: JoinValues): Promise<string | null> {
+    try {
+      const result = await client.auth.acceptInvitation.mutate(values);
+      signIn(result);
+      router.replace(homeFor(result.role));
+      return null;
+    } catch (error) {
+      const failure = describe(error);
+      if (failure.code === "NOT_FOUND") return "No invitation has that token.";
+      if (failure.reason === "invitation_decided" || failure.reason === "invitation_expired") return "That invitation is no longer open; ask the admin for a new one.";
+      if (failure.code === "UNAUTHORIZED") return "An account exists for that address; join with its password.";
       return failure.message;
     }
   }
@@ -53,7 +70,12 @@ export function SignInScreen() {
         </div>
       </section>
       <section className="sheet">
-        <SignInForm onSubmit={submit} />
+        <div className="sheet-inner">
+          {joining ? <JoinForm onSubmit={join} /> : <SignInForm onSubmit={submit} />}
+          <button type="button" className="link small" onClick={() => setJoining((j) => !j)} style={{ marginTop: 20, background: "none", border: 0, padding: 0 }}>
+            {joining ? "Back to sign in" : "Joining with an invitation?"}
+          </button>
+        </div>
       </section>
     </main>
   );

@@ -19,9 +19,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # The apps resolve the workspace packages through their built output, so the build comes first.
+      - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build
       - run: pnpm build:web
       - run: pnpm -C apps/web exec playwright install --with-deps chromium
       - run: pnpm test:e2e

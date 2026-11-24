@@ -124,6 +124,9 @@ td .sub { display: block; font-size: var(--fs-small); line-height: 16px; color: 
 td a.name, .name { font-weight: 500; }
 td a.name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a table that keeps its columns: fixed layout when there is room, a scroll inside its frame on a phone */
+table.wide { table-layout: fixed; }
+.scroll-x { overflow-x: auto; }
 .table-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--rule); color: var(--muted); font-size: var(--fs-small); }
 
 /* status pill: a pale tint with dark ink of the same hue, one per row */
@@ -296,6 +299,7 @@ a.cite:hover { background: var(--accent); color: #fff; }
 .setting { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 32px; padding: 28px 0; border-top: 1px solid var(--border); }
 .setting:first-child { border-top: 0; padding-top: 0; }
 .setting .about h2 { font-size: var(--fs-section); font-weight: 600; margin-bottom: 8px; }
+.kv.two-up { grid-template-columns: 1fr 1fr; column-gap: 40px; }
 .panel.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
 .small-title { font-size: var(--fs-body); font-weight: 600; margin-bottom: 8px; }
 
@@ -330,6 +334,8 @@ a.cite:hover { background: var(--accent); color: #fff; }
   .form-grid .row { grid-template-columns: minmax(0, 1fr); }
   .title-row { flex-wrap: wrap; align-items: flex-start; }
   .admin-tabs { overflow-x: auto; gap: 20px; white-space: nowrap; }
+  table.wide { table-layout: auto; min-width: 720px; }
+  .panel > header { flex-wrap: wrap; }
   .kpi-strip { grid-template-columns: 1fr 1fr; gap: 12px 0; }
   .kpi { border-left: 0; padding: 0; }
   .kpi:nth-child(even) { padding-right: 12px; }
@@ -337,7 +343,8 @@ a.cite:hover { background: var(--accent); color: #fff; }
   .kpi.lead { grid-column: 1 / -1; padding: 0; border-left: 0; }
   .usage-row { grid-template-columns: minmax(0, 1fr); }
   .setting { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .panel.split { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .kv.two-up { grid-template-columns: 1fr 1fr; column-gap: 40px; }
+.panel.split { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .gate { grid-template-columns: minmax(0, 1fr); }
   .gate .side { padding: 24px 20px; border-right: 0; border-bottom: 1px solid var(--border); gap: 24px; }
   .gate .sheet { padding: 24px 20px 40px; align-items: start; }

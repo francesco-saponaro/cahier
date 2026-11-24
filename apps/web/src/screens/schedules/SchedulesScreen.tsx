@@ -94,9 +94,9 @@ export function SchedulesScreen() {
           )}
         </div>
       ) : null}
-      <div className="with-rail">
+      <div className="stack">
         <div className="table-wrap">
-          <table style={{ tableLayout: "fixed" }}>
+          <table className="wide">
             <thead>
               <tr>
                 <th style={{ width: "36%" }}>Schedule</th>
@@ -176,7 +176,7 @@ export function SchedulesScreen() {
   );
 }
 
-/** The chosen schedule: its prompt, and every run with its outcome and the conversation it wrote. */
+/** The chosen schedule: its prompt, the actions, and every run as a row with its outcome and the conversation it wrote. */
 const RUNS_SHOWN = 8;
 
 function RunsPanel({ id, onAct, busy }: { id: string; onAct: (action: "pause" | "resume" | "end" | "runNow") => void; busy: boolean }) {
@@ -203,66 +203,83 @@ function RunsPanel({ id, onAct, busy }: { id: string; onAct: (action: "pause" | 
   return (
     <div className="panel">
       <header>
-        <h2>{schedule.name}</h2>
-        <Pill tone={STATUS_TONE[schedule.status]}>{schedule.status === "active" ? "Active" : schedule.status === "paused" ? "Paused" : "Ended"}</Pill>
-      </header>
-      <p className="small" style={{ marginBottom: 4 }}>
-        Asks {agentName}: “{schedule.prompt}”
-      </p>
-      <p className="muted small" style={{ marginBottom: 14 }}>
-        {cadenceWords(schedule)}
-        {schedule.nextRunAt ? ` · next ${when(schedule.nextRunAt)}` : ""}
-      </p>
-      {schedule.status !== "ended" ? (
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          <Button small onClick={() => onAct("runNow")} disabled={busy}>
-            Run now
-          </Button>
-          {schedule.status === "active" ? (
-            <Button small onClick={() => onAct("pause")} disabled={busy}>
-              Pause
-            </Button>
-          ) : (
-            <Button small onClick={() => onAct("resume")} disabled={busy}>
-              Resume
-            </Button>
-          )}
-          <Button small tone="danger" onClick={() => onAct("end")} disabled={busy}>
-            End
-          </Button>
+        <div style={{ minWidth: 0 }}>
+          <h2>
+            {schedule.name} <Pill tone={STATUS_TONE[schedule.status]}>{schedule.status === "active" ? "Active" : schedule.status === "paused" ? "Paused" : "Ended"}</Pill>
+          </h2>
+          <p className="muted small" style={{ marginTop: 4 }}>
+            Asks {agentName}: “{schedule.prompt}” · {cadenceWords(schedule)}
+            {schedule.nextRunAt ? ` · next ${when(schedule.nextRunAt)}` : ""}
+          </p>
         </div>
-      ) : null}
-      <h3 style={{ fontSize: "var(--fs-body)", fontWeight: 600, marginBottom: 6 }}>
-        {plural(runs.length, "run")}
-        {failed > 0 ? <span className="muted" style={{ fontWeight: 400 }}> · {failed} failed</span> : null}
-      </h3>
+        {schedule.status !== "ended" ? (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flex: "none" }}>
+            <Button small onClick={() => onAct("runNow")} disabled={busy}>
+              Run now
+            </Button>
+            {schedule.status === "active" ? (
+              <Button small onClick={() => onAct("pause")} disabled={busy}>
+                Pause
+              </Button>
+            ) : (
+              <Button small onClick={() => onAct("resume")} disabled={busy}>
+                Resume
+              </Button>
+            )}
+            <Button small tone="ghost" onClick={() => onAct("end")} disabled={busy}>
+              End
+            </Button>
+          </div>
+        ) : null}
+      </header>
       {runs.length === 0 ? (
         <Empty>No run yet. The first one is written at the next scheduled time, or now with “Run now”.</Empty>
       ) : (
-        <ol className="versions">
-          {shown.map((r) => (
-            <li key={r.id} className="version">
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span className="name">{when(r.scheduledFor)}</span>
+        <div className="scroll-x">
+        <table className="wide">
+          <thead>
+            <tr>
+              <th>Scheduled for</th>
+              <th>Outcome</th>
+              <th>Finished</th>
+              <th className="n">Answer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((r) => (
+              <tr key={r.id}>
+                <td className="num">{when(r.scheduledFor)}</td>
+                <td>
                   <Pill tone={RUN_TONE[r.status]}>{runWords(r)}</Pill>
-                </div>
-                <div className="sub">{r.finishedAt ? `finished ${ago(r.finishedAt)}` : r.startedAt ? `started ${ago(r.startedAt)}` : "not started"}</div>
-              </div>
-              {r.conversationId ? (
-                <Link href={`/chat?c=${encodeURIComponent(r.conversationId)}`} className="link small">
-                  Read the answer
-                </Link>
-              ) : null}
-            </li>
-          ))}
-        </ol>
+                </td>
+                <td>{r.finishedAt ? ago(r.finishedAt) : r.startedAt ? `started ${ago(r.startedAt)}` : <span className="muted">—</span>}</td>
+                <td className="n">
+                  {r.conversationId ? (
+                    <Link href={`/chat?c=${encodeURIComponent(r.conversationId)}`} className="link">
+                      Read the answer
+                    </Link>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
       )}
-      {runs.length > RUNS_SHOWN && !showAll ? (
-        <Button small tone="ghost" onClick={() => setShowAll(true)} style={{ marginTop: 8 }}>
-          Show all {runs.length} runs
-        </Button>
-      ) : null}
+      <div className="table-foot" style={{ padding: "10px 0 0" }}>
+        <span>
+          {plural(runs.length, "run")}
+          {failed > 0 ? ` · ${failed} failed` : ""}
+          {runs.length > RUNS_SHOWN && !showAll ? ` · the latest ${RUNS_SHOWN} shown` : ""}
+        </span>
+        {runs.length > RUNS_SHOWN && !showAll ? (
+          <Button small onClick={() => setShowAll(true)}>
+            Show all {runs.length}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -272,8 +289,9 @@ function HowItWorks() {
     <div className="panel">
       <header>
         <h2>How a schedule runs</h2>
+        <span className="muted small">Pick a schedule to read its runs</span>
       </header>
-      <dl className="kv">
+      <dl className="kv two-up">
         <div>
           <dt>Who asks</dt>
           <dd>You, with your rights</dd>
@@ -295,9 +313,6 @@ function HowItWorks() {
           <dd>The workspace budget, like a question</dd>
         </div>
       </dl>
-      <p className="muted small" style={{ marginTop: 12 }}>
-        Pick a schedule to read its runs.
-      </p>
     </div>
   );
 }

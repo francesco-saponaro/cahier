@@ -25,7 +25,7 @@ flowchart TB
   db --> domain
 ```
 
-`packages/domain` holds the entities, the text rules (the approximate tokenizer, sentence units, the chunker), money as micro-dollars, the eleven transition tables, the access rules, the grounding pipeline (terms, packing, the extractive composer behind the `Answerer` port, the meter, the rate limit), the ports (eighteen repositories, a unit of work, a clock, an id generator) as interfaces, an in-memory implementation of them for the tests, and the use cases as factories that take their ports. A use case returns a `Result`: `ok(value)` or `fail(code, message, reason)`, with six codes that map one to one onto tRPC error codes, so a refusal is a value that can travel to a screen without a server in between. `useCasesCreator` builds every use case once over one set of dependencies; the server and the demo each call it.
+`packages/domain` holds the entities, the text rules (the approximate tokenizer, sentence units, the chunker), money as micro-dollars, the twelve transition tables, the access rules, the grounding pipeline (terms, packing, the extractive composer behind the `Answerer` port, the meter, the rate limit), the ports (eighteen repositories, a unit of work, a clock, an id generator) as interfaces, an in-memory implementation of them for the tests, and the use cases as factories that take their ports. A use case returns a `Result`: `ok(value)` or `fail(code, message, reason)`, with six codes that map one to one onto tRPC error codes, so a refusal is a value that can travel to a screen without a server in between. `useCasesCreator` builds every use case once over one set of dependencies; the server and the demo each call it.
 
 `packages/db` is the Drizzle schema (twenty-two tables, eighteen enums, the checks and unique constraints), the generated migration in `drizzle/` with the search vector and its GIN index, the hand-written corpus, the seed generator (about 13,500 coherent rows from a fixed seed), and `drizzlePortsCreator`, which implements the domain's ports over a Drizzle handle. The handle is node-postgres on the server and PGlite in the tests and in the browser; the adapters do not know which. The full-text search and the permission filter are SQL in this package.
 
@@ -156,7 +156,7 @@ The constraints the database enforces under the code: foreign keys on every rela
 
 ## The state machines
 
-Eleven, as tables in `packages/domain/src/transitions.ts`; a use case asks `move(table, entity, from, to)` before touching anything, so a forbidden move is a `CONFLICT` with the reason `forbidden_transition` and never a row.
+Twelve, as tables in `packages/domain/src/transitions.ts`; a use case asks `move(table, entity, from, to)` before touching anything, so a forbidden move is a `CONFLICT` with the reason `forbidden_transition` and never a row.
 
 ```mermaid
 stateDiagram-v2

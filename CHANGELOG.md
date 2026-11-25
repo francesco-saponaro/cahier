@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-25
+
+- `docs/architecture.md`: the packages and the imports allowed between them, a question traced through Fastify and through the demo's in-process link, the data model with its constraints, the state machines, the grounding pipeline, how PostgreSQL gets into the page, and the tests by layer.
+- `docs/screenshots/`: the chat with a cited answer, the viewer at the cited span, the usage dashboard, the builder, and the chat on a phone, taken from the demo build.
+- The README finished: the live demo and its accounts, what a member and an admin get, the stack and why each piece is there, the architecture in a paragraph, the known limits and what comes next.
+- `project.json`, and the first publication.
+
 ## 2026-11-24
 
 - `apps/web`, demo mode: with no API URL the app opens PostgreSQL in the page (PGlite), applies the committed migration, loads the seed and calls the router through a link that runs each procedure in the tab; a subscription arrives as the same started, data and stopped envelopes the server-sent-events link gives. The session the browser kept is written back into the fresh database after a reload. The scheduler ticks once on load and every minute. The sign-in page says what the demo is and whether its database is ready. The migration is copied into `public/demo/` before the build; the bundler ships PGlite's WebAssembly itself.

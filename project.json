@@ -1,0 +1,10 @@
+{
+  "slug": "cahier",
+  "name": "Cahier",
+  "company": "Mistral AI",
+  "description": "A team assistant that answers from the team's own documents with a citation on every line that opens the page at the exact passage, and the admin console behind it: members, sharing with approval, monthly token budgets, usage at the prices in force, the audit log; the whole product runs in the browser on PGlite for the demo.",
+  "install": "pnpm install --frozen-lockfile",
+  "test": "pnpm build && pnpm test",
+  "build": "pnpm build:web",
+  "dist": "apps/web/out"
+}

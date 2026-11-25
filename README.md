@@ -8,7 +8,7 @@ The part I care most about is grounding: cutting documents into chunks that foll
 
 ## Live demo
 
-https://cahier.netlify.app
+https://cahier-francesco-saponaro.netlify.app
 
 The demo is the whole product with no server behind it. With `NEXT_PUBLIC_API_URL` empty, the static export opens PostgreSQL in the page (PGlite, the database compiled to WebAssembly), applies the same migration docker compose applies, loads the same seed, and calls the same router through a link that runs each procedure in the tab instead of over HTTP. Nothing above that link knows the difference. The database lives in memory: a reload starts from the seed again, with the person still signed in, and whatever they created is gone. Opening it costs the download of about nine megabytes of PostgreSQL and a few seconds of seeding, which start as soon as the page opens.
 

@@ -241,7 +241,7 @@ flowchart TB
   tick --> link["inProcessLink over the router,<br/>use cases over drizzlePortsCreator(db)"]
 ```
 
-PGlite's loader finds its WebAssembly and data bundle with `new URL(…, import.meta.url)`, which the bundler understands and ships as hashed static files, so only the migration is copied. One database per page, as a promise with a status beside it, started by the session provider when the page opens rather than at the first call, so the sign-in page can say "loading" and "ready". The database is rebuilt from the seed on every load; the session the browser kept is written back into it for a user the seed knows with an active membership while the copy is live, which is the one thing the demo does that the server does not. The data lives until the tab is closed.
+PGlite's loader finds its WebAssembly and data bundle with `new URL(…, import.meta.url)`, which the bundler understands and ships as hashed static files, so only the migration is copied. One database per page, as a promise with a status beside it, started by the session provider when the page opens instead of at the first call, so the sign-in page can say "loading" and "ready". The database is rebuilt from the seed on every load; the session the browser kept is written back into it for a user the seed knows with an active membership while the copy is live, which is the one thing the demo does that the server does not. The data lives until the tab is closed.
 
 ## Tests, by layer
 
